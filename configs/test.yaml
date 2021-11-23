@@ -1,0 +1,19 @@
+coil_diameter: 100
+num_coil_turns: 100
+world_box_size: 500
+cell_step: 5.0
+particle_step: 5.0
+particles:
+  part_type: 0 # Monopole
+  start_point_type: 'point'
+  start_x: 0.0
+  start_y: 0.0
+  start_z: -250.0
+  direction_type: 'fixed'
+  direction_x: 0.0
+  direction_y: 0.0
+  direction_x: 1.0
+  speed_type: 'fixed'
+  speed: 0.01
+  moment_tupe: 'fixed'
+  magnetic_moment: [0,0,9.284e-24] # Magnetic moment of an electron, pointing to Z+
