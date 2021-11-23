@@ -32,6 +32,7 @@ class MasterHandler:
         for key in ['particles']:
             if key not in config.keys():
                 raise ValueError(key+" MUST be defined in config file!")
+        self._config                    = config
         # load all variables
         self._coilDiameter              = config.get('coil_diameter', 100) # in mm
         self._numCoilTurns              = config.get('num_coil_turns', 100)
@@ -39,6 +40,7 @@ class MasterHandler:
         self._cellStep                  = config.get('cell_step', 5.0) # size of each cell
         self._particleStep              = config.get('particle_step', 5.0) # size of each particle step in flight
         self._particles                 = config['particles'] # containing all the configurations, such as direction (rvs range), start point, speed (or energy), charge (or magnetic charge, or magnetic moment) and etc.
+        self._verbose                   = config.get('verbose', False)
         # initiate the finite cell tensors, including Bx, By, Bz, Ex, Ey, Ez
         self._initiateTensors()
         # initiate some physics constants
@@ -120,6 +122,8 @@ class MasterHandler:
         :return:
         '''
         self._outputDict                        = {}
+        # record the config
+        self._outputDict['config']              = self._config
         # create all the branches
         self._outputDict['part_centers']        = [] # original coord frame
         self._outputDict['part_directions']     = [] # original coord frame
@@ -322,23 +326,36 @@ class MasterHandler:
         self._coil_direction            = np.asarray([0,0,1.])
         # translate the particle start point to (0,0,0)
         self._coil_center               = self._translate(self._coil_center, -self._part_coord)
+        if self._verbose:
+            print("==>> After the first translation:")
+            self._printCoilInfo()
+            print()
         # rotate along Z axis until particle direction projection has no Y component
-        self._coil_center, self._coil_direction         = self._rotate(
-            self._coil_center,
-            self._coil_direction,
-            angle           = -np.arctan2(self._part_direction[1], self._part_direction[0]),
-            axis            = 2,
-        )
+        if self._part_direction[0]**2+self._part_direction[1]**2<1e-10*self._part_direction[2]**2:
+            self._coil_center, self._coil_direction         = self._rotate(
+                self._coil_center,
+                self._coil_direction,
+                angle           = -np.arctan2(self._part_direction[1], self._part_direction[0]),
+                axis            = 2,
+            )
+        if self._verbose:
+            print("==>> After rotation along Z:")
+            self._printCoilInfo()
+            print()
         # rotate along Y until particle direction is along Z
         self._coil_center, self._coil_direction = self._rotate(
             self._coil_center,
             self._coil_direction,
             angle           =-np.arctan2(
+                np.sqrt(self._part_direction[0]**2+self._part_direction[1]**2),
                 self._part_direction[2],
-                np.sqrt(self._part_direction[0]**2+self._part_direction[1]**2)
             ),
             axis            =1,
         )
+        if self._verbose:
+            print("==>> After rotation along Y:")
+            self._printCoilInfo()
+            print()
         # rotate along Z until coil center Y=0
         self._coil_center, self._coil_direction = self._rotate(
             self._coil_center,
@@ -346,16 +363,28 @@ class MasterHandler:
             angle           = -np.arctan2(self._coil_center[1], self._coil_center[0]),
             axis            = 2,
         )
+        if self._verbose:
+            print("==>> After rotation along Z (to make coil center has no Y):")
+            self._printCoilInfo()
+            print()
         # translate along Z until coil center Z = 0
         self._coil_center               = self._translate(
             self._coil_center,
             np.asarray([0,0,-self._coil_center[2]])
         )
+        if self._verbose:
+            print("==>> After final translation")
+            self._printCoilInfo()
+            print()
         return
 
     ##############################
     ## sub-functions for coordinates transforming
     ##############################
+    def _printCoilInfo(self):
+        print("==>> coil center = "+str(self._coil_center))
+        print("==>> coil direction = "+str(self._coil_direction))
+
     def _translate(self, x_ori, translation):
         '''
         translate x_ori

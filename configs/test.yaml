@@ -3,6 +3,7 @@ num_coil_turns: 100
 world_box_size: 500
 cell_step: 5.0
 particle_step: 5.0
+verbose: True
 particles:
   part_type: 0 # Monopole
   start_point_type: 'point'
@@ -12,7 +13,7 @@ particles:
   direction_type: 'fixed'
   direction_x: 0.0
   direction_y: 0.0
-  direction_x: 1.0
+  direction_z: 1.0
   speed_type: 'fixed'
   speed: 0.01
   moment_tupe: 'fixed'
