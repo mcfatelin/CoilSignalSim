@@ -13,7 +13,7 @@ import numpy as np
 import yaml
 import time
 import pickle as pkl
-
+from copy import deepcopy
 
 np.random.seed(int(time.time()))
 
@@ -470,8 +470,8 @@ class MasterHandler:
         :return:
         '''
         # copy the previous tensors
-        self._previous_E                = self._E
-        self._previous_B                = self._B
+        self._previous_E                = deepcopy(self._E)
+        self._previous_B                = deepcopy(self._B)
         # calculate the current E & B tensor because of particle movement
         self._calcFieldTensorDueToPart()
         if initiate:
@@ -509,10 +509,14 @@ class MasterHandler:
         :return:
         '''
         # calculate the vector r
-        r                   = self._cellCenterTensor
+        r                   = deepcopy(self._cellCenterTensor)
+        # if self._verbose:
+        #     print("before r = "+str(r[2,:,:,:]))
         r[2,:,:,:]          = r[2,:,:,:] - self._partZ # just change Z
+        # if self._verbose:
+        #     print("after r = "+str(r[2,:,:,:]))
         # calculate the scalar r
-        abs_r               = np.sum(r**2, axis=0)
+        abs_r               = np.sqrt(np.sum(r**2, axis=0))
         # calculate the B field
         self._B             = r/abs_r**3 * self._reducedPlanckConstant / 2. / self._electronCharge # in 10^6 kg s^-2 A^-1 = 10^6 T
         # convert to nT
@@ -525,7 +529,7 @@ class MasterHandler:
         :return:
         '''
         # calculate the vector r
-        r                   = self._cellCenterTensor
+        r                   = deepcopy(self._cellCenterTensor)
         r[2, :, :, :]       = r[2, :, :, :] - self._partZ  # just change Z
         # calculate the scalar r
         abs_r               = np.sum(r ** 2, axis=0)
@@ -551,7 +555,7 @@ class MasterHandler:
             indexing            = 'ij'
         )
         # calculate the vector r
-        r                       = self._cellCenterTensor
+        r                       = deepcopy(self._cellCenterTensor)
         r[2, :, :, :]           = r[2, :, :, :] - self._partZ  # just change Z
         # calculate the scalar r
         abs_r                   = np.sum(r ** 2, axis=0)
@@ -674,8 +678,8 @@ class MasterHandler:
         self._outputDict['voltages'][-1].append(self._voltage)
         self._outputDict['part_Zs'][-1].append(self._partZ)
         if self._saveType>0:
-            self._outputDict['E_tensors'][-1].append(self._E)
-            self._outputDict['B_tensors'][-1].append(self._B)
+            self._outputDict['E_tensors'][-1].append(deepcopy(self._E))
+            self._outputDict['B_tensors'][-1].append(deepcopy(self._B))
         return
 
     def _outputToFile(self):

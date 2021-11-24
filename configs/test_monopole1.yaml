@@ -2,7 +2,7 @@ coil_diameter: 100
 num_coil_turns: 100
 world_box_size: 500
 cell_step: 5.0
-particle_step: 5.0
+particle_step: 50.0
 verbose: True
 particles:
   part_type: 0 # Monopole
