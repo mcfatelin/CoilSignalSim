@@ -5,11 +5,11 @@ cell_step: 2.0
 particle_step: 2.0
 verbose: True
 particles:
-  part_type: 0 # Monopole
+  part_type: 2 # Magnetic Moment
   start_point_type: 'point'
   start_x: 0.0
   start_y: 0.0
-  start_z: -250.0
+  start_z: -100.0
   direction_type: 'fixed'
   direction_x: 0.0
   direction_y: 0.0
@@ -17,4 +17,4 @@ particles:
   speed_type: 'fixed'
   speed: 0.01
   moment_tupe: 'fixed'
-  magnetic_moment: [0,0,9.284e-24] # Magnetic moment of an electron, pointing to Z+
+  magnetic_moment: [9.284e-24,0,0] # Magnetic moment of an electron, pointing to X+

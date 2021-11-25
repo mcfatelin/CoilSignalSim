@@ -5,11 +5,11 @@ cell_step: 2.0
 particle_step: 2.0
 verbose: True
 particles:
-  part_type: 0 # Monopole
+  part_type: 2 # Magnetic Moment
   start_point_type: 'point'
   start_x: 0.0
   start_y: 0.0
-  start_z: -250.0
+  start_z: -100.0
   direction_type: 'fixed'
   direction_x: 0.0
   direction_y: 0.0
