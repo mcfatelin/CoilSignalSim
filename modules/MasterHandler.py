@@ -622,6 +622,10 @@ class MasterHandler:
         Delta_t                 = self._particleStep / (self._speedOfLight * self._part_speed) # in ns
         # get the index
         xinds, yinds, zinds     = self._getCoilSurfaceIndex()
+        # # debug
+        # print("xinds = "+str(xinds))
+        # print("yinds = "+str(yinds))
+        # print("zinds = "+str(zinds))
         # calculate B flux
         BFlux                   = np.sum(Delta_B[:,xinds,yinds,zinds]*self._cellStep**2)
         # convert to right unit
@@ -647,15 +651,21 @@ class MasterHandler:
             self._cellCenters,
             indexing='ij'
         )
-        Distance                            = np.sqrt(
+        Distance                            = self._cellCenterTensor - CoilCenterTensor
+        AbsDistance                         = np.sqrt(
             np.sum((self._cellCenterTensor - CoilCenterTensor) ** 2, axis=0)
         )
-        ProductDirection                    = np.sum(
+        # # debug
+        # print("CoilDirectionTensor shape = "+str(CoilDirectionTensor.shape))
+        # print("Distance shape = "+str(Distance.shape))
+        ProductDirection                    = np.abs(np.sum(
             CoilDirectionTensor*Distance,
             axis=0
-        )
+        )/AbsDistance)
         # Find the minimum along Z
         zinds                               = np.argmin(ProductDirection,axis=2)
+        # # debug
+        # print("zinds = "+str(zinds))
         xinds, yinds                        = np.meshgrid(
             np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
             np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
@@ -663,7 +673,7 @@ class MasterHandler:
         )
         # Find the one with distance < r
         inds1, inds2                        = np.where(
-            Distance[xinds, yinds, zinds]<0.5*self._coilDiameter
+            AbsDistance[xinds, yinds, zinds]<0.5*self._coilDiameter
         )
         return xinds[inds1, inds2], yinds[inds1, inds2], zinds[inds1, inds2]
     ##############################################

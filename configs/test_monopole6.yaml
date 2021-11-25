@@ -1,3 +1,4 @@
+# Make monopole passing coil center with an angle of 45 degree
 coil_diameter: 100
 num_coil_turns: 100
 world_box_size: 500
@@ -9,12 +10,12 @@ particles:
   start_point_type: 'point'
   start_x: 0.0
   start_y: 0.0
-  start_z: -250.0
+  start_z: 0.0
   direction_type: 'fixed'
-  direction_x: 0.0
-  direction_y: 0.0
+  direction_x: 1.0
+  direction_y: 1.0
   direction_z: 1.0
   speed_type: 'fixed'
-  speed: 0.01
+  speed: 0.00001
   moment_tupe: 'fixed'
   magnetic_moment: [0,0,9.284e-24] # Magnetic moment of an electron, pointing to Z+

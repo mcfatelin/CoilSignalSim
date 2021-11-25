@@ -1,3 +1,4 @@
+# Make monopole passing coil edge, but still perpendicular to its plane
 coil_diameter: 100
 num_coil_turns: 100
 world_box_size: 500
@@ -7,9 +8,9 @@ verbose: True
 particles:
   part_type: 0 # Monopole
   start_point_type: 'point'
-  start_x: 0.0
+  start_x: 100.0
   start_y: 0.0
-  start_z: -250.0
+  start_z: 0.0
   direction_type: 'fixed'
   direction_x: 0.0
   direction_y: 0.0
