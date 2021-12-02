@@ -16,5 +16,5 @@ particles:
   direction_z: 1.0
   speed_type: 'fixed'
   speed: 0.01
-  moment_tupe: 'fixed'
+  moment_type: 'fixed'
   magnetic_moment: [0,0,9.284e-24] # Magnetic moment of an electron, pointing to Z+

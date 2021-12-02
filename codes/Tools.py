@@ -17,6 +17,134 @@ from matplotlib.patches import Ellipse
 GlobalCMap              = plt.cm.viridis
 GlobalSpeedOfLight      = 2.998e8 # m/s
 
+
+def PlotSingleBField(FieldTensor, **kwargs):
+    # load info
+    output_filename     = kwargs.get('output_filename', 'test.jpg')
+    step_index          = kwargs.get('step_index', 0)
+    part_speed          = kwargs.get('part_speed', 0.01)
+    comp_mins           = kwargs.get('comp_mins', [0, 0, 0])
+    comp_maxs           = kwargs.get('comp_maxs', [1, 1, 1])
+    config              = kwargs.get('config', {})
+    ###########################
+    ## construct canvas
+    ############################
+    # construct figure
+    params = {
+        'backend': 'Agg',
+        # colormap
+        'image.cmap': 'viridis',
+        # figure
+        'figure.figsize': (9, 6),
+        'font.size': 32,
+        'font.family': 'serif',
+        'font.serif': ['Times'],
+        # axes
+        'axes.titlesize': 42,
+        'axes.labelsize': 32,
+        'axes.linewidth': 2,
+        # ticks
+        'xtick.labelsize': 24,
+        'ytick.labelsize': 24,
+        'xtick.major.size': 16,
+        'xtick.minor.size': 8,
+        'ytick.major.size': 16,
+        'ytick.minor.size': 8,
+        'xtick.major.width': 2,
+        'xtick.minor.width': 2,
+        'ytick.major.width': 2,
+        'ytick.minor.width': 2,
+        'xtick.direction': 'in',
+        'ytick.direction': 'in',
+        # markers
+        'lines.markersize': 2,
+        'lines.markeredgewidth': 1,
+        'errorbar.capsize': 8,
+        'lines.linewidth': 1,
+        'lines.linestyle': 'solid',
+        #    'lines.marker' : None,
+        'savefig.bbox': 'tight',
+        'legend.fontsize': 24,
+        # 'legend.fontsize': 18,
+        # 'figure.figsize': (15, 5),
+        # 'axes.labelsize': 18,
+        # 'axes.titlesize':18,
+        # 'xtick.labelsize':14,
+        # 'ytick.labelsize':14
+        'axes.labelsize': 24,
+        'axes.titlesize': 24,
+        'xtick.labelsize': 18,
+        'ytick.labelsize': 18,
+        #     'mathtext.fontset': 'dejavuserif'
+        'mathtext.fontset': 'cm'
+    }
+    plt.rcParams.update(params)
+    fig = plt.figure(figsize=(20.0, 20.0))
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
+    gs = gridspec.GridSpec(200, 150)
+    gs.update(
+        left=0.12,
+        top=0.98,
+        right=0.90,
+        bottom=0.12,
+        hspace=0.01,
+        wspace=0.01,
+    )
+    axes = []
+    for axis_id in range(3):
+        xindex_lower = axis_id * 50 + 6
+        xindex_upper = axis_id * 50 + 50 - 6
+        ax_array = []
+        for jj, _ in enumerate([-1, 0, 1, 2]):
+            yindex_lower = jj * 50  + 6
+            yindex_upper = jj * 50 + 50 - 6
+            ax_array.append(plt.subplot(gs[yindex_lower:yindex_upper, xindex_lower:xindex_upper]))
+        axes.append(ax_array)
+    ############################
+    ## Plot the tensor projections
+    ############################
+    world_box_size          = config.get('world_box_size', 500)
+    cell_step               = config.get('cell_step', 5)
+    num_cells               = int(np.floor(world_box_size / cell_step))
+    bins                    = np.linspace(-0.5 * world_box_size, 0.5 * world_box_size, num_cells + 1)
+    X, Y                    = np.meshgrid(bins, bins, indexing='ij')
+    caxs                    = []
+    coloraxes               = []
+    for ii, ax_id in enumerate(range(3)):
+        for jj, comp_id in enumerate([-1, 0, 1, 2]):
+            axes[ii][jj], c = PlotField(
+                X,
+                Y,
+                FieldTensor[step_index],
+                axes[ii][jj],
+                ax_id=ax_id,
+                comp_id=comp_id,
+                min=comp_mins[ii],
+                max=comp_maxs[ii],
+                box_size=world_box_size,
+                cell_step=cell_step,
+                coil_center=[0,0,0],
+            )
+            if ii == 0:
+                Label = 'B[nT]'
+                if comp_id == 0:
+                    Label = 'Bx[nT]'
+                elif comp_id == 1:
+                    Label = 'By[nT]'
+                elif comp_id == 2:
+                    Label = 'Bz[nT]'
+                cax = fig.add_axes([0.902, 0.78 - float(jj) * 0.213, 0.03, 0.17], label=Label)
+                coloraxis = fig.colorbar(c, cax=cax)
+                coloraxis.set_label(Label, fontsize=20)
+                caxs.append(cax)
+                coloraxes.append(coloraxis)
+    # save
+    plt.savefig(output_filename)
+    plt.close()
+    return
+
+
 def PlotSingleField(FieldTensor, Voltages, Zs, **kwargs):
     # load info
     output_filename             = kwargs.get('output_filename', 'test.jpg')
