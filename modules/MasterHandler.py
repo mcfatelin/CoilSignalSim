@@ -532,7 +532,7 @@ class MasterHandler:
         r                   = deepcopy(self._cellCenterTensor)
         r[2, :, :, :]       = r[2, :, :, :] - self._partZ  # just change Z
         # calculate the scalar r
-        abs_r               = np.sum(r ** 2, axis=0)
+        abs_r               = np.sqrt(np.sum(r ** 2, axis=0))
         # calculate the E field
         self._E             = self._electronCharge / (4.*np.pi*self._dielectricConstant) * r / abs_r**3. # 10^6 V/m
         # convert to SI unit
@@ -589,9 +589,10 @@ class MasterHandler:
         Delta_l             = self._cellStep # in mm
         # calculate the difference matrix
         Delta               = DeltaE * Delta_l / (self._speedOfLight**2 * Delta_t)*1e-3 # nT
-        # calculate the B_x & B_
-        self._B[0,:,:,-1]   = self._iterationProcess(Delta, self._numCells-1, axis=0)
-        self._B[1,:,:,-1]   = self._iterationProcess(Delta, self._numCells-1, axis=1)
+        # calculate the B_x & B_y
+        self._iterationProcess(Delta[1,:,:,:], self._numCells-1, axis=0)
+        self._iterationProcess(-Delta[0,:,:,:], self._numCells-1, axis=1)
+        self._B[2,:,:,:]    = 0.
         return
 
     def _iterationProcess(self, Delta, Index, axis=0):
@@ -603,10 +604,11 @@ class MasterHandler:
         :return:
         '''
         if Index==0:
-            return np.zeros((self._numCells, self._numCells))
+            self._B[axis,:,:,Index]         = np.zeros((self._numCells, self._numCells))
+            return self._B[axis,:,:,Index]
         elif Index<self._numCells:
-            return Delta[axis,:,:,Index] + self._iterationProcess(Delta, Index-1, axis)
-        return
+            self._B[axis,:,:,Index]         = Delta[:,:,Index] + self._iterationProcess(Delta, Index-1, axis)
+            return self._B[axis,:,:,Index]
 
     ############################
     ############################
@@ -622,7 +624,7 @@ class MasterHandler:
         Delta_t                 = self._particleStep / (self._speedOfLight * self._part_speed) # in ns
         # get the index
         xinds, yinds, zinds     = self._getCoilSurfaceIndex()
-        # # debug
+        # debug
         # print("xinds = "+str(xinds))
         # print("yinds = "+str(yinds))
         # print("zinds = "+str(zinds))
@@ -662,20 +664,64 @@ class MasterHandler:
             CoilDirectionTensor*Distance,
             axis=0
         )/AbsDistance)
-        # Find the minimum along Z
-        zinds                               = np.argmin(ProductDirection,axis=2)
-        # # debug
-        # print("zinds = "+str(zinds))
-        xinds, yinds                        = np.meshgrid(
-            np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
-            np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
-            indexing                        = 'ij'
-        )
-        # Find the one with distance < r
-        inds1, inds2                        = np.where(
-            AbsDistance[xinds, yinds, zinds]<0.5*self._coilDiameter
-        )
-        return xinds[inds1, inds2], yinds[inds1, inds2], zinds[inds1, inds2]
+        return self._findOptimalSurfaceInds(ProductDirection, AbsDistance)
+        # # Find the minimum along Z
+        # zinds                               = np.argmin(ProductDirection,axis=2)
+        # # # debug
+        # # print("zinds = "+str(zinds))
+        # xinds, yinds                        = np.meshgrid(
+        #     np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
+        #     np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
+        #     indexing                        = 'ij'
+        # )
+        # # Find the one with distance < r
+        # inds1, inds2                        = np.where(
+        #     AbsDistance[xinds, yinds, zinds]<0.5*self._coilDiameter
+        # )
+        # return xinds[inds1, inds2], yinds[inds1, inds2], zinds[inds1, inds2]
+
+    def _findOptimalSurfaceInds(self, ProductDirection, AbsDistance):
+        xinds_array     = []
+        yinds_array     = []
+        zinds_array     = []
+        lengths         = []
+        for axis in [0,1,2]:
+            # Find the minimum along Z (required axis)
+            zinds                               = np.argmin(ProductDirection,axis=axis)
+            # # debug
+            # print("zinds = "+str(zinds))
+            xinds, yinds                        = np.meshgrid(
+                np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
+                np.linspace(0,self._numCells-1, self._numCells).astype(np.int),
+                indexing                        = 'ij'
+            )
+            # Find the one with distance < r
+            if axis==0:
+                inds1, inds2                        = np.where(
+                    AbsDistance[zinds, xinds, yinds]<0.5*self._coilDiameter
+                )
+            elif axis==1:
+                inds1, inds2 = np.where(
+                    AbsDistance[xinds, zinds, yinds] < 0.5 * self._coilDiameter
+                )
+            else:
+                inds1, inds2 = np.where(
+                    AbsDistance[xinds, yinds, zinds] < 0.5 * self._coilDiameter
+                )
+            # append
+            lengths.append(int(len(inds1)))
+            xinds_array.append(deepcopy(
+                xinds[inds1, inds2]
+            ))
+            yinds_array.append(deepcopy(
+                yinds[inds1, inds2]
+            ))
+            zinds_array.append(deepcopy(
+                zinds[inds1, inds2]
+            ))
+        # check
+        index               = np.argmax(lengths)
+        return xinds_array[index], yinds_array[index], zinds_array[index]
     ##############################################
     ##############################################
 

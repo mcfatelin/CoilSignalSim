@@ -8,7 +8,7 @@ particles:
   part_type: 1 # Charged Particle
   start_point_type: 'point'
   start_x: 0.0
-  start_y: 0.0
+  start_y: -50.0
   start_z: 0.0
   direction_type: 'fixed'
   direction_x: 1.0
