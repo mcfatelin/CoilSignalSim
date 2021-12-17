@@ -135,6 +135,7 @@ class SignalCalculator:
         self._outputDict['part_magnetic_moments']   = []
         self._outputDict['part_electric_charges']   = []
         self._outputDict['part_magnetic_charges']   = []
+        self._outputDict['sample_sizes']            = [] # size of each step in ns
         self._outputDict['coil_ids']                = [] # ids of hit coils
         self._outputDict['hit_times']               = [] # hit times of each coil
         self._outputDict['voltages']                = []
@@ -251,6 +252,7 @@ class SignalCalculator:
         self._voltages                  = []
         self._hit_times                 = []
         self._coil_ids                  = []
+        self._sample_size               = self._inductionCalculator.getParticleStep() / (self._part_speed*self._speedOfLight) # in ns
         for hit_info in self._arrayManager.getHits():
             # load info
             start_point                 = hit_info['hit_start_point']
@@ -279,6 +281,7 @@ class SignalCalculator:
         self._outputDict['part_electric_charges'].append(self._part_electric_charge)
         self._outputDict['part_magnetic_charges'].append(self._part_magnetic_charge)
         self._outputDict['part_magnetic_moments'].append(self._part_magnetic_moment)
+        self._outputDict['sample_sizes'].append(self._sample_size)
         self._outputDict['coil_ids'].append(deepcopy(self._coil_ids))
         self._outputDict['hit_times'].append(deepcopy(self._hit_times))
         self._outputDict['voltages'].append(deepcopy(self._voltages))

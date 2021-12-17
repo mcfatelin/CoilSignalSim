@@ -26,6 +26,9 @@ class InductionCalculator:
     def getBoxSize(self):
         return self._calculator.getBoxSize()
 
+    def getParticleStep(self):
+        return self._calculator.getParticleStep()
+
     def calcInductionVoltage(self, **kwargs):
         return self._calculator.calcInductionVoltage(**kwargs)
 
@@ -281,6 +284,9 @@ class SingleInductionCalculator:
     def getBoxSize(self):
         return self._worldBoxSize
 
+    def getParticleStep(self):
+        return self._particleStep
+
     def calcInductionVoltage(self, **kwargs):
         '''
         Calculate the induction voltage based on input B field template
@@ -374,6 +380,9 @@ class MultipleInductionCalculator:
 
     def getBoxSize(self):
         return self._calculators[0].getBoxSize()
+
+    def getParticleStep(self):
+        return self._calculators[0].getParticleStep()
 
     def calcInductionVoltage(self, **kwargs):
         Vs                  = None
