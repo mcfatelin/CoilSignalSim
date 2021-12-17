@@ -316,12 +316,16 @@ class SingleInductionCalculator:
         Delta_t                         = self._particleStep / (self._speedOfLight*self._partSpeed) # in ns
         BFlux                           = np.sum(
             Delta_B[:, :, xinds, yinds, zinds]*self._cellStep**2,
-            axis                        =1
+            axis                        =(1,2)
         )
+        # print("BFlux shape = "+str(BFlux.shape))
         # convert to right unit
         BFlux                          *= 1.e-15 # V/s
         # get the voltages
-        Vs                              = -BFlux/Delta_t*1e-9 # in V
+        Vs                              = np.append(
+            np.zeros(1),
+            -BFlux/Delta_t*1e-9 # in V
+        )
         # scale the voltages due to the different particle properties
         Vs                             *= part_speed/self._partSpeed
         if self._partType==0:
