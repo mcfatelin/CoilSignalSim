@@ -330,7 +330,7 @@ class SingleInductionCalculator:
         # get the voltages
         Vs                              = np.append(
             np.zeros(1),
-            -BFlux/Delta_t*1e-9 # in V
+            -BFlux/Delta_t*1e9 # in V
         )
         # scale the voltages due to the different particle properties
         Vs                             *= part_speed/self._partSpeed

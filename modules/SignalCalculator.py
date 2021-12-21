@@ -260,16 +260,18 @@ class SignalCalculator:
             self._coil_ids.append(hit_info['coil_id'])
             # calculate voltage
             self._voltages.append(
-                self._inductionCalculator.calcInductionVoltage(
-                    start_point         = start_point,
-                    direction           = self._part_direction,
-                    coil_center         = hit_info['coil_center'],
-                    coil_direction      = hit_info['coil_direction'],
-                    coil_diameter       = self._coilDiameter,
-                    part_speed          = self._part_speed,
-                    part_electric_charge= self._part_electric_charge,
-                    part_magnetic_charge= self._part_magnetic_charge,
-                    part_magnetic_moment= self._part_magnetic_moment
+                deepcopy(
+                    self._inductionCalculator.calcInductionVoltage(
+                        start_point         = start_point,
+                        direction           = self._part_direction,
+                        coil_center         = hit_info['coil_center'],
+                        coil_direction      = hit_info['coil_direction'],
+                        coil_diameter       = self._coilDiameter,
+                        part_speed          = self._part_speed,
+                        part_electric_charge= self._part_electric_charge,
+                        part_magnetic_charge= self._part_magnetic_charge,
+                        part_magnetic_moment= self._part_magnetic_moment
+                    )
                 )
             )
         return
