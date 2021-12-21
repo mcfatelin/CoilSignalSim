@@ -258,6 +258,8 @@ class SignalCalculator:
             start_point                 = hit_info['hit_start_point']
             self._hit_times.append(hit_info['hit_time'])
             self._coil_ids.append(hit_info['coil_id'])
+            # debug
+            # print("===>>> Hit coil id = "+str(hit_info['coil_id']))
             # calculate voltage
             self._voltages.append(
                 deepcopy(

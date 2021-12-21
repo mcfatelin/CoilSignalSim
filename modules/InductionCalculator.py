@@ -226,16 +226,25 @@ class SingleInductionCalculator:
             CoilDirectionTensor * Distance,
             axis=0
         ) / AbsDistance)
-        return self._findOptimalSurfaceInds(ProductDirection, AbsDistance, coil_diameter=coil_diameter)
+        return self._findOptimalSurfaceInds(
+            ProductDirection,
+            AbsDistance,
+            coil_diameter           = coil_diameter,
+            coil_direction          = coil_direction,
+        )
 
     def _findOptimalSurfaceInds(self, ProductDirection, AbsDistance, **kwargs):
         # load info
         coil_diameter           = kwargs.get('coil_diameter', 100)
+        coil_direction          = kwargs['coil_direction']
         ###############
-        xinds_array             = []
-        yinds_array             = []
-        zinds_array             = []
-        lengths                 = []
+        # find the axis for projection
+        ###############
+        xinds_array = []
+        yinds_array = []
+        zinds_array = []
+        lengths = []
+        # axis                    = np.argmax(coil_direction)
         for axis in [0, 1, 2]:
             # Find the minimum along Z (required axis)
             zinds = np.argmin(ProductDirection, axis=axis)
@@ -261,15 +270,36 @@ class SingleInductionCalculator:
                 )
             # append
             lengths.append(int(len(inds1)))
-            xinds_array.append(deepcopy(
-                xinds[inds1, inds2]
-            ))
-            yinds_array.append(deepcopy(
-                yinds[inds1, inds2]
-            ))
-            zinds_array.append(deepcopy(
-                zinds[inds1, inds2]
-            ))
+            if axis==0:
+                xinds_array.append(deepcopy(
+                    zinds[inds1, inds2]
+                ))
+                yinds_array.append(deepcopy(
+                    xinds[inds1, inds2]
+                ))
+                zinds_array.append(deepcopy(
+                    yinds[inds1, inds2]
+                ))
+            elif axis==1:
+                xinds_array.append(deepcopy(
+                    xinds[inds1, inds2]
+                ))
+                yinds_array.append(deepcopy(
+                    zinds[inds1, inds2]
+                ))
+                zinds_array.append(deepcopy(
+                    yinds[inds1, inds2]
+                ))
+            else:
+                xinds_array.append(deepcopy(
+                    xinds[inds1, inds2]
+                ))
+                yinds_array.append(deepcopy(
+                    yinds[inds1, inds2]
+                ))
+                zinds_array.append(deepcopy(
+                    zinds[inds1, inds2]
+                ))
         # check
         index = np.argmax(lengths)
         return xinds_array[index], yinds_array[index], zinds_array[index]
@@ -311,12 +341,19 @@ class SingleInductionCalculator:
             coil_center                 = coil_center,
             coil_direction              = coil_direction,
         )
+        # debug
+        # print("coil_center_prime = "+str(coil_center_prime))
+        # print("coil_direction_prime = "+str(coil_direction_prime))
         # get the index of cells that will be used to calculate B
         xinds, yinds, zinds             = self._getCoilSurfaceIndex(
             coil_center                 = coil_center_prime,
             coil_direction              = coil_direction_prime,
             coil_diameter               = coil_diameter,
         )
+        # debug
+        # print("xinds = "+str(xinds))
+        # print("yinds = "+str(yinds))
+        # print("zinds = "+str(zinds))
         # calculate B flux
         Delta_B                         = self._B[1:,:,:,:,:] - self._B[:-1,:,:,:,:]
         Delta_t                         = self._particleStep / (self._speedOfLight*self._partSpeed) # in ns

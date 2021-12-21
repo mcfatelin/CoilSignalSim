@@ -54,6 +54,8 @@ PartSpeed               = Dict['part_speeds'][EventID]
 print("MaxNumEvents = "+str(MaxNumEvents))
 print("NumSamples = "+str(NumSamples))
 print("Particle speed = "+str(PartSpeed)+' c')
+print("Particle center = "+str(Dict['part_centers'][EventID]))
+print("Particle direction = "+str(Dict['part_directions'][EventID]))
 
 ##########################
 ## Construct waveform
