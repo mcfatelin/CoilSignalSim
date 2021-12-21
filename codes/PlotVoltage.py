@@ -66,6 +66,8 @@ time_range              = (
     max_hit_time + NumSamples*sample_size/2.
 )
 
+voltages                = np.asarray(Dict['voltages'][EventID])
+max_voltage             = np.max(voltages)
 wfs                     = []
 for jj in range(len(Dict['hit_times'][EventID])):
     SingleWF            = {}
@@ -79,7 +81,7 @@ for jj in range(len(Dict['hit_times'][EventID])):
     centers             = 0.5*(bins[1:] + bins[:-1])
     SingleWF['coil_id'] = coil_id
     SingleWF['t']       = centers
-    SingleWF['v']       = Dict['voltages'][EventID][ii]
+    SingleWF['v']       = Dict['voltages'][EventID][jj] + float(jj)*max_voltage # for debug
     wfs.append(deepcopy(SingleWF))
 
 
@@ -145,7 +147,7 @@ params = {
     'mathtext.fontset': 'cm'
 }
 plt.rcParams.update(params)
-fig = plt.figure(figsize=(10.0, 5.0))
+fig = plt.figure(figsize=(8.0, 10.0))
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 gs = gridspec.GridSpec(100, 100)
@@ -183,7 +185,8 @@ ax.set_xlabel('Time [ns]', fontsize=20)
 ax.set_ylabel('Voltage [V]', fontsize=20)
 ax.legend(
     loc                 ='best',
-    fontsize            = 22
+    fontsize            = 18,
+    ncol                = 2
 )
 plt.show()
 
