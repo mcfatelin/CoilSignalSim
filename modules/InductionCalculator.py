@@ -29,6 +29,9 @@ class InductionCalculator:
     def getParticleStep(self):
         return self._calculator.getParticleStep()
 
+    def getNumberOfSamples(self):
+        return self._calculator.getNumberOfSamples()
+
     def calcInductionVoltage(self, **kwargs):
         return self._calculator.calcInductionVoltage(**kwargs)
 
@@ -317,6 +320,9 @@ class SingleInductionCalculator:
     def getParticleStep(self):
         return self._particleStep
 
+    def getNumberOfSamples(self):
+        return self._B.shape[0]
+
     def calcInductionVoltage(self, **kwargs):
         '''
         Calculate the induction voltage based on input B field template
@@ -420,6 +426,9 @@ class MultipleInductionCalculator:
 
     def getParticleStep(self):
         return self._calculators[0].getParticleStep()
+
+    def getNumberOfSamples(self):
+        return self._calculators[0].getNumberOfSamples()
 
     def calcInductionVoltage(self, **kwargs):
         Vs                  = None

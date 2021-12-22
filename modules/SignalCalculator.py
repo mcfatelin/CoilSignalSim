@@ -13,6 +13,7 @@ from copy import deepcopy
 from modules.InductionCalculator import InductionCalculator
 from modules.ArrayManager import ArrayManager
 from modules.ParticleGenerator import ParticleGenerator
+from modules.ThermalNoise import ThermalNoiseGenerator
 
 
 class SignalCalculator:
@@ -39,6 +40,8 @@ class SignalCalculator:
         self._loadArrayConfig(**config['array_config'])
         # load particle generator
         self._loadParticleGenerator(**config['particles'])
+        # load noise generator
+        self._loadThermalNoiseGenerator(**config['noise_config'])
         # check if particle generator has the same part_type as in field config
         if self._particleGenerator.getPartType()!=self._inductionCalculator.getPartType():
             raise ValueError(
@@ -115,6 +118,14 @@ class SignalCalculator:
         self._arrayManager                      = ArrayManager(**kwargs)
         return
 
+    def _loadThermalNoiseGenerator(self, **kwargs):
+        '''
+        Load the config to create thermal noise generator
+        :param kwargs:
+        :return:
+        '''
+        self._thermalNoiseGenerator             = ThermalNoiseGenerator(**kwargs)
+        return
 
     ###############################################
     ## Private functions
@@ -236,6 +247,34 @@ class SignalCalculator:
         print("===>>> particle magnetic moment = " + str(self._part_magnetic_moment) + ' Bohr moment')
         return
 
+    def _initiateThermalWaveform(self):
+        '''
+        Initiate the waveforms of each coil & adding thermal noise to it
+        :return:
+        '''
+        # get all coil ids
+        coil_ids                        = self._arrayManager.getCoilIDs()
+        # loop over and append
+        self._hit_times                 = []
+        self._coil_ids                  = []
+        self._voltages                  = []
+        for coil_id in coil_ids:
+            self._coil_ids.append(coil_id)
+            self._hit_times.append(-1) # placeholder
+            self._voltages.append(
+                deepcopy(
+                    self._thermalNoiseGenerator.generateNoise(
+                        size                = self._inductionCalculator.getNumberOfSamples(),
+                        sampling_rate       = 1.e9/(self._inductionCalculator.getParticleStep() / (self._part_speed*self._speedOfLight)) # in Hz
+                    )
+                )
+            )
+        # convert to numpy array
+        self._hit_times                 = np.asarray(self._hit_times)
+        self._coil_ids                  = np.asarray(self._coil_ids)
+        self._voltages                  = np.asarray(self._voltages)
+        return
+
     def _calcInductionVoltages(self):
         '''
         Calculate the induction voltages
@@ -249,21 +288,18 @@ class SignalCalculator:
             tolerance                   = self._inductionCalculator.getBoxSize()/2.
         )
         # loop over each hit
-        self._voltages                  = []
-        self._hit_times                 = []
-        self._coil_ids                  = []
         self._sample_size               = self._inductionCalculator.getParticleStep() / (self._part_speed*self._speedOfLight) # in ns
         for hit_info in self._arrayManager.getHits():
             # load info
             start_point                 = hit_info['hit_start_point']
-            self._hit_times.append(hit_info['hit_time'])
-            self._coil_ids.append(hit_info['coil_id'])
+            # find the index for the coil id
+            index                       = np.where(self._coil_ids==hit_info['coil_id'])[0]
+            # change the hit time
+            self._hit_times[index]      = hit_info['hit_time']
             # debug
             # print("===>>> Hit coil id = "+str(hit_info['coil_id']))
             # calculate voltage
-            self._voltages.append(
-                deepcopy(
-                    self._inductionCalculator.calcInductionVoltage(
+            self._voltages[index]       += self._inductionCalculator.calcInductionVoltage(
                         start_point         = start_point,
                         direction           = self._part_direction,
                         coil_center         = hit_info['coil_center'],
@@ -273,9 +309,20 @@ class SignalCalculator:
                         part_electric_charge= self._part_electric_charge,
                         part_magnetic_charge= self._part_magnetic_charge,
                         part_magnetic_moment= self._part_magnetic_moment
-                    )
-                )
             )
+        return
+
+    def _correctPlaceHolderHitTimes(self):
+        '''
+        Correct the hit times which were initiated as placeholders
+        :return:
+        '''
+        # find the average of the hit times of hit coils
+        inds                    = np.where(self._hit_times>0)[0]
+        avg_hit_time            = np.average(self._hit_times[inds])
+        # find those placeholder hit times
+        inds2                   = np.where(self._hit_times<0)[0]
+        self._hit_times[inds2]  = avg_hit_time
         return
 
     def _save(self):
@@ -331,8 +378,12 @@ class SignalCalculator:
             # printout event info
             if self._verbose:
                 self._printEvent(ii)
+            # initiate waveforms & adding thermal noise
+            self._initiateThermalWaveform()
             # calculate induction voltages on all "hit" coils
             self._calcInductionVoltages()
+            # correct placeholder hit time
+            self._correctPlaceHolderHitTimes()
             # save
             self._save()
         # output

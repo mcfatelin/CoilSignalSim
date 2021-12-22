@@ -111,3 +111,6 @@ class ArrayManager:
             Dict['hit_start_point'] = hit_start_point
             Array.append(Dict)
         return Array
+
+    def getCoilIDs(self):
+        return self._coilIDs
