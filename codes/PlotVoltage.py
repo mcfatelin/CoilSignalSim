@@ -69,6 +69,7 @@ time_range              = (
 )
 
 voltages                = np.asarray(Dict['voltages'][EventID])
+voltages[:,:3]          = 0
 max_voltage             = np.max(voltages)
 wfs                     = []
 for jj in range(len(Dict['hit_times'][EventID])):

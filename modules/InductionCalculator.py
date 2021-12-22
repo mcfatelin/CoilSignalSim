@@ -341,13 +341,16 @@ class SingleInductionCalculator:
         part_magnetic_moment            = kwargs.get('part_magnetic_moment', [0,0,9.284e-24])
         # transfer the coordinates so that particle moves along Z+
         # and coil center on X+
+        # # debug
+        # print("coil_center = "+str(coil_center))
+        # print("coil_direction = "+str(coil_direction))
         coil_center_prime, coil_direction_prime     = self._transferCoordinates(
             part_start_point            = part_start_point,
             part_direction              = part_direction,
             coil_center                 = coil_center,
             coil_direction              = coil_direction,
         )
-        # debug
+        # # debug
         # print("coil_center_prime = "+str(coil_center_prime))
         # print("coil_direction_prime = "+str(coil_direction_prime))
         # get the index of cells that will be used to calculate B

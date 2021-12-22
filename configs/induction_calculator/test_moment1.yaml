@@ -1,0 +1,32 @@
+coil_diameter: 100
+world_box_size: 1000
+particles:
+  part_type: 2 # Monopole
+  start_point_x: 50
+  start_point_y: 50
+  start_point_z: -100
+  direction_theta: 0
+  direction_phi: 0
+  speed:
+    mean: 0.001
+    std: 0.0000000001
+  electric_charge: 1
+  magnetic_charge: 1
+  moment_direction_x: 1
+  moment_direction_y: 1
+  moment_direction_y: 1
+array_config:
+  coil_diameter: 100
+  coil_arrange_filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/raws/coil_arrange/single_coil_array.pkl'
+field_config:
+  multiple: True
+  configs:
+    - num_coil_turns: 100
+      filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/outputs/field_generators/magnetic_moment_electron_x.pkl'
+    - num_coil_turns: 100
+      filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/outputs/field_generators/magnetic_moment_electron_y.pkl'
+    - num_coil_turns: 100
+      filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/outputs/field_generators/magnetic_moment_electron_z.pkl'
+noise_config:
+  R:  1.0
+  T:  0
