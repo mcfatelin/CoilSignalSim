@@ -289,6 +289,7 @@ class SignalCalculator:
         self._hit_times                 = np.asarray(self._hit_times)
         self._coil_ids                  = np.asarray(self._coil_ids)
         self._voltages                  = np.asarray(self._voltages)
+        self._voltages_wo_noise         = np.zeros(shape=self._voltages.shape)
         return
 
     def _calcInductionVoltages(self):
@@ -305,7 +306,6 @@ class SignalCalculator:
         )
         # loop over each hit
         self._sample_size               = self._inductionCalculator.getParticleStep() / (self._part_speed*self._speedOfLight) # in ns
-        self._voltages_wo_noise         = []
         for hit_info in self._arrayManager.getHits():
             # load info
             start_point                 = hit_info['hit_start_point']
@@ -327,8 +327,8 @@ class SignalCalculator:
                         part_magnetic_charge= self._part_magnetic_charge,
                         part_magnetic_moment= self._part_magnetic_moment
             )
-            self._voltages_wo_noise.append(voltages)
-            self._voltages[index]       += voltages
+            self._voltages_wo_noise[index]      += voltages
+            self._voltages[index]               += voltages
         return
 
     def _correctPlaceHolderHitTimes(self):

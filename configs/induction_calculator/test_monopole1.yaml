@@ -1,5 +1,6 @@
 coil_diameter: 100
 world_box_size: 1000
+calculateRLC: True
 particles:
   part_type: 0 # Monopole
   start_point_r: 500
@@ -20,4 +21,7 @@ field_config:
   filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/outputs/field_generators/monopole.pkl'
 noise_config:
   R:  1.0
-  T:  0
+  T:  300
+circuit_config:
+  placeholder: True
+
