@@ -88,26 +88,26 @@ class ParticleGenerator:
         :return:
         '''
         # initiate all variables
-        self._startXGenerator           = None
-        self._startYGenerator           = None
-        self._startZGenerator           = None
-        self._startRGenerator           = None
-        self._startThetaGenerator       = None
-        self._startPhiGenerator         = None
-        self._directionXGenerator       = None
-        self._directionYGenerator       = None
-        self._directionZGenerator       = None
-        self._directionThetaGenerator   = None
-        self._directionPhiGenerator     = None
-        self._speedGenerator            = None
-        self._electricChargeGenerator   = None
-        self._magneticChargeGenerator   = None
-        self._absMagneticMomentGenerator= None
-        self._momentDirectionXGenerator = None
-        self._momentDirectionYGenerator = None
-        self._momentDirectionZGenerator = None
-        self._momentDirectionThetaGenerator = None
-        self._momentDirectionPhiGenerator   = None
+        self._startXGenerator                       = None
+        self._startYGenerator                       = None
+        self._startZGenerator                       = None
+        self._startRGenerator                       = None
+        self._startThetaGenerator                   = None
+        self._startPhiGenerator                     = None
+        self._directionXGenerator                   = None
+        self._directionYGenerator                   = None
+        self._directionZGenerator                   = None
+        self._directionThetaGenerator               = None
+        self._directionPhiGenerator                 = None
+        self._speedGenerator                        = None
+        self._electricChargeGenerator               = None
+        self._magneticChargeGenerator               = None
+        self._absMagneticMomentGenerator            = None
+        self._momentDirectionXGenerator             = None
+        self._momentDirectionYGenerator             = None
+        self._momentDirectionZGenerator             = None
+        self._momentDirectionThetaGenerator         = None
+        self._momentDirectionPhiGenerator           = None
         # start point
         if 'start_point_x' in kwargs.keys():
             self._startXGenerator       = GeneralGenerator(kwargs.get('start_point_x', 0))

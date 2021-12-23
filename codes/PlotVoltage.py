@@ -15,7 +15,7 @@ from copy import deepcopy
 ## inputs
 ############################
 if len(sys.argv)<3:
-    Message             = 'python3 PlotVoltage.py <input pickle file> <output png file> <event ID> <(opt.) number of coils>'
+    Message             = 'python3 PlotVoltage.py <input pickle file> <output png file> <event ID> <(opt.) W or WO noise> <(opt.) number of coils>'
     print(Message)
     exit()
 
@@ -23,9 +23,12 @@ if len(sys.argv)<3:
 InputFilename           = sys.argv[1]
 OutputFilename          = sys.argv[2]
 EventID                 = int(sys.argv[3])
+WithNoise               = False
+if len(sys.argv)>4 and int(sys.argv[4])>0:
+    WithNoise           = True
 NumCoils                = 6
-if len(sys.argv)>4:
-    NumCoils            = int(sys.argv[4])
+if len(sys.argv)>5:
+    NumCoils            = int(sys.argv[5])
 
 
 #########################
@@ -68,7 +71,9 @@ time_range              = (
     max_hit_time + NumSamples*sample_size/2.
 )
 
-voltages                = np.asarray(Dict['voltages'][EventID])
+voltages                = np.asarray(Dict['voltages_wo_noise'][EventID])
+if WithNoise:
+    voltages            = np.asarray(Dict['voltages'][EventID])
 voltages[:,:3]          = 0
 max_voltage             = np.max(voltages)
 wfs                     = []

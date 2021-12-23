@@ -14,7 +14,7 @@ from modules.InductionCalculator import InductionCalculator
 from modules.ArrayManager import ArrayManager
 from modules.ParticleGenerator import ParticleGenerator
 from modules.ThermalNoise import ThermalNoiseGenerator
-
+from modules.CircuitCalculator import CircuitCalculator
 
 class SignalCalculator:
     def __init__(self, **kwargs):
@@ -32,6 +32,7 @@ class SignalCalculator:
         self._worldBoxSize          = config.get('world_box_size', 1000)
         self._particles             = config['particles']  # containing all the configurations, such as direction (rvs range), start point, speed (or energy), charge (or magnetic charge, or magnetic moment) and etc.
         self._verbose               = config.get('verbose', False)
+        self._calculateRLC          = config.get('calculateRLC', False)
         # initiate some physics constants
         self._initiateConstants()
         # load the field tensors
@@ -42,6 +43,8 @@ class SignalCalculator:
         self._loadParticleGenerator(**config['particles'])
         # load noise generator
         self._loadThermalNoiseGenerator(**config['noise_config'])
+        # load circuit calculator
+        self._loadCircuitCalculator(**config['circuit_config'])
         # check if particle generator has the same part_type as in field config
         if self._particleGenerator.getPartType()!=self._inductionCalculator.getPartType():
             raise ValueError(
@@ -127,6 +130,16 @@ class SignalCalculator:
         self._thermalNoiseGenerator             = ThermalNoiseGenerator(**kwargs)
         return
 
+
+    def _loadCircuitCalculator(self, **kwargs):
+        '''
+        Load the config for circuit calculator
+        :param kwargs:
+        :return:
+        '''
+        self._circuitCalculator                 = CircuitCalculator(**kwargs)
+        return
+
     ###############################################
     ## Private functions
     ###############################################
@@ -149,8 +162,11 @@ class SignalCalculator:
         self._outputDict['sample_sizes']            = [] # size of each step in ns
         self._outputDict['coil_ids']                = [] # ids of hit coils
         self._outputDict['hit_times']               = [] # hit times of each coil
+        self._outputDict['voltages_wo_noise']       = [] # voltages without thermal noise
         self._outputDict['voltages']                = []
-        # self._outputDict['voltages_LR']             = [] # to be implemented
+        if self._calculateRLC:
+            self._outputDict['sampling_times_RLC']      = []
+            self._outputDict['voltages_RLC']            = []
         # self._outputDict['voltage_magnetometer']    = [] # to be implemented
         return
 
@@ -289,6 +305,7 @@ class SignalCalculator:
         )
         # loop over each hit
         self._sample_size               = self._inductionCalculator.getParticleStep() / (self._part_speed*self._speedOfLight) # in ns
+        self._voltages_wo_noise         = []
         for hit_info in self._arrayManager.getHits():
             # load info
             start_point                 = hit_info['hit_start_point']
@@ -299,7 +316,7 @@ class SignalCalculator:
             # debug
             # print("===>>> Hit coil id = "+str(hit_info['coil_id']))
             # calculate voltage
-            self._voltages[index]       += self._inductionCalculator.calcInductionVoltage(
+            voltages                    = self._inductionCalculator.calcInductionVoltage(
                         start_point         = start_point,
                         direction           = self._part_direction,
                         coil_center         = hit_info['coil_center'],
@@ -310,6 +327,8 @@ class SignalCalculator:
                         part_magnetic_charge= self._part_magnetic_charge,
                         part_magnetic_moment= self._part_magnetic_moment
             )
+            self._voltages_wo_noise.append(voltages)
+            self._voltages[index]       += voltages
         return
 
     def _correctPlaceHolderHitTimes(self):
@@ -325,6 +344,30 @@ class SignalCalculator:
         self._hit_times[inds2]  = avg_hit_time
         return
 
+    def _calculateCircuitShapedVoltages(self):
+        '''
+        Calculate the RLC shaped voltages
+        :return:
+        '''
+        self._voltages_RLC              = []
+        self._sample_times_RLC          = self._circuitCalculator.getSamplingTimes()
+        for voltages, mean_hit_time in zip(self._voltages_wo_noise, self._hit_times):
+            # calculate real voltage calculation times
+            NumberOfSamples             = voltages.shape[0]
+            bins                        = np.linspace(
+                mean_hit_time - float(NumberOfSamples)*self._sample_size/2.,
+                mean_hit_time + float(NumberOfSamples)*self._sample_size/2.,
+                NumberOfSamples+1
+            )
+            centers                     = 0.5*(bins[1:] + bins[:-1])
+            self._voltages_RLC.append(
+                self._circuitCalculator.calculateVoltages(
+                    voltages            = voltages, # in V
+                    times               = centers, # in ns
+                )
+            )
+        return
+
     def _save(self):
         self._outputDict['part_centers'].append(self._part_center)
         self._outputDict['part_directions'].append(self._part_direction)
@@ -336,6 +379,10 @@ class SignalCalculator:
         self._outputDict['coil_ids'].append(deepcopy(self._coil_ids))
         self._outputDict['hit_times'].append(deepcopy(self._hit_times))
         self._outputDict['voltages'].append(deepcopy(self._voltages))
+        self._outputDict['voltages_wo_noise'].append(deepcopy(self._voltages_wo_noise))
+        if self._calculateRLC:
+            self._outputDict['voltages_RLC'].append(deepcopy(self._voltages_RLC))
+            self._outputDict['sampling_times_RLC'].append(deepcopy(self._sample_times_RLC))
         return
 
 
@@ -384,6 +431,9 @@ class SignalCalculator:
             self._calcInductionVoltages()
             # correct placeholder hit time
             self._correctPlaceHolderHitTimes()
+            # calculate signal after RLC circuit shaping
+            if self._calculateRLC:
+                self._calculateCircuitShapedVoltages()
             # save
             self._save()
         # output

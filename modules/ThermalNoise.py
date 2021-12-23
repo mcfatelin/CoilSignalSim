@@ -25,12 +25,12 @@ class ThermalNoiseGenerator:
         initiate the physics constants
         :return:
         '''
-        self._speedOfLight = 2.998e2  # mm/ns
-        self._dielectricConstant = 8.854e-12  # F/m = A^2 s^4 m^-3 kg^-1
-        self._magneticPermiability = 1.2566e-6  # N/A^2
-        self._electronCharge = 1.602e-19  # C
-        self._reducedPlanckConstant = 1.0546e-34  # J s
-        self._boltzmannConstant     = 1.380649e-23 # J K^-1
+        self._speedOfLight                  = 2.998e2  # mm/ns
+        self._dielectricConstant            = 8.854e-12  # F/m = A^2 s^4 m^-3 kg^-1
+        self._magneticPermiability          = 1.2566e-6  # N/A^2
+        self._electronCharge                = 1.602e-19  # C
+        self._reducedPlanckConstant         = 1.0546e-34  # J s
+        self._boltzmannConstant             = 1.380649e-23 # J K^-1
         return
 
 
