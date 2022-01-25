@@ -73,8 +73,9 @@ time_range              = (
 
 voltages                = np.asarray(Dict['voltages_wo_noise'][EventID])
 if WithNoise:
+    print("With noise!")
     voltages            = np.asarray(Dict['voltages'][EventID])
-voltages[:,:3]          = 0
+# voltages[:,:3]          = 0
 max_voltage             = np.max(voltages)
 wfs                     = []
 for jj in range(len(Dict['hit_times'][EventID])):
@@ -89,7 +90,7 @@ for jj in range(len(Dict['hit_times'][EventID])):
     centers             = 0.5*(bins[1:] + bins[:-1])
     SingleWF['coil_id'] = coil_id
     SingleWF['t']       = centers
-    SingleWF['v']       = Dict['voltages'][EventID][jj] + float(jj)*max_voltage # for debug
+    SingleWF['v']       = voltages[jj] + float(jj)*max_voltage # for debug
     wfs.append(deepcopy(SingleWF))
 
 
@@ -193,10 +194,21 @@ ax.set_xlabel('Time [ns]', fontsize=20)
 ax.set_ylabel('Voltage [V]', fontsize=20)
 ax.legend(
     loc                 ='best',
-    fontsize            = 18,
+    fontsize            = 10,
     ncol                = 2
 )
 plt.show()
+
+
+# temporary output
+OutputDict              = {}
+print("output coil_id="+str(wfs[4]['coil_id']))
+OutputDict['t']         = wfs[4]['t']
+OutputDict['v']         = wfs[4]['v']
+pkl.dump(
+    OutputDict,
+    open("ToYe.pkl",'wb')
+)
 
 
 

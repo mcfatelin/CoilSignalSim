@@ -1,11 +1,10 @@
-world_box_size: 500
-cell_step: 5.0
-particle_step: 5.0
+world_box_size: 500 # total size of simulated cubic box
+cell_step: 5.0 # size of fine-element cell
+particle_step: 5.0 # store the simulation at each partilce_step
 verbose: False
 save_E: False
 particles:
   part_type: 0 # Monopole
-  speed: 0.001
-  electric_charge: 1
-  magnetic_charge: 1
-  magnetic_moment: [0,0,9.284e-24] # Magnetic moment of an electron, pointing to Z+
+  speed: 0.001 # unit in speed of light
+  electric_charge: 1 # unit in electron charge
+  magnetic_charge: 1 # unit in Dirac magnetic charge

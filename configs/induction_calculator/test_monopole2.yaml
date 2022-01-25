@@ -1,13 +1,14 @@
-coil_diameter: 100 # unit in mm
+coil_diameter: 100
 world_box_size: 1000
 calculateRLC: True
 particles:
   part_type: 0 # Monopole
-  start_point_r: 500
-  start_point_theta: 3.141592653
-  start_point_phi: 0
-  direction_theta: 0
-  direction_phi: 0
+  start_point_x: -50
+  start_point_y: -50
+  start_point_z: -50
+  direction_x: 1.
+  direction_y: 1.
+  direction_y: 1.
   speed:
     mean: 0.00001
     std: 0.0000000001
