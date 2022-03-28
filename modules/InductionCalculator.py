@@ -1,6 +1,8 @@
 #########################################################
 ## Module for calculating the amount of voltages induced by Magnetic field derivative
 ## by Qing Lin @ 2021-12-07
+## Adding an option to use analytic calculator originally written by Xiang Kang
+## by Qing Lin @ 2022-03-28
 ##########################################################
 import numpy as np
 import pickle as pkl
@@ -72,32 +74,43 @@ class SingleInductionCalculator:
         '''
         # load info
         self._numCoilTurns              = kwargs.get('num_coil_turns', 100)
-        # load file
-        Dict                            = pkl.load(open(kwargs['filename'], 'rb'))
-        # dump info
-        self._worldBoxSize              = Dict['config']['world_box_size']
-        self._cellStep                  = Dict['config']['cell_step']
-        self._particleStep              = Dict['config']['particle_step']
-        self._partType                  = Dict['part_type']
-        self._partSpeed                 = Dict['part_speed']
-        self._partElectricCharge        = Dict['part_electric_charge']
-        self._partMagneticCharge        = Dict['part_magnetic_charge']
-        self._partMagneticMoment        = np.asarray(Dict['part_magnetic_moment'])
-        self._B                         = np.asarray(Dict['B_tensors']) #
-        # make secondary derivative info
-        self._numCells                  = int(np.floor(self._worldBoxSize/ self._cellStep))
-        self._cellBins                  = np.linspace(-0.5*self._worldBoxSize, 0.5*self._worldBoxSize, self._numCells+1)
-        self._cellCenters               = 0.5*(self._cellBins[1:]+self._cellBins[:-1])
-        self._cellSteps                 = self._cellBins[1:] - self._cellBins[:-1]
-        # cell center tensor
-        x, y, z                         = np.meshgrid(self._cellCenters, self._cellCenters, self._cellCenters, indexing='ij')
-        x                               = np.reshape(x, newshape=(1, self._numCells, self._numCells, self._numCells))
-        y                               = np.reshape(y, newshape=(1, self._numCells, self._numCells, self._numCells))
-        z                               = np.reshape(z, newshape=(1, self._numCells, self._numCells, self._numCells))
-        self._cellCenterTensor          = np.concatenate(
-            (x, y, z),
-            axis=0
-        )
+        if not kwargs.get('loading_analytic', False):
+            ##############################
+            # Load simulated field
+            ##############################
+            # load file
+            Dict                            = pkl.load(open(kwargs['filename'], 'rb'))
+            # dump info
+            self._worldBoxSize              = Dict['config']['world_box_size']
+            self._cellStep                  = Dict['config']['cell_step']
+            self._particleStep              = Dict['config']['particle_step']
+            self._partType                  = Dict['part_type']
+            self._partSpeed                 = Dict['part_speed']
+            self._partElectricCharge        = Dict['part_electric_charge']
+            self._partMagneticCharge        = Dict['part_magnetic_charge']
+            self._partMagneticMoment        = np.asarray(Dict['part_magnetic_moment'])
+            self._B                         = np.asarray(Dict['B_tensors']) #
+            # make secondary derivative info
+            self._numCells                  = int(np.floor(self._worldBoxSize/ self._cellStep))
+            self._cellBins                  = np.linspace(-0.5*self._worldBoxSize, 0.5*self._worldBoxSize, self._numCells+1)
+            self._cellCenters               = 0.5*(self._cellBins[1:]+self._cellBins[:-1])
+            self._cellSteps                 = self._cellBins[1:] - self._cellBins[:-1]
+            # cell center tensor
+            x, y, z                         = np.meshgrid(self._cellCenters, self._cellCenters, self._cellCenters, indexing='ij')
+            x                               = np.reshape(x, newshape=(1, self._numCells, self._numCells, self._numCells))
+            y                               = np.reshape(y, newshape=(1, self._numCells, self._numCells, self._numCells))
+            z                               = np.reshape(z, newshape=(1, self._numCells, self._numCells, self._numCells))
+            self._cellCenterTensor          = np.concatenate(
+                (x, y, z),
+                axis=0
+            )
+        else:
+            ##############################
+            # Load analytic calculator
+            ##############################
+            # get information
+            self._worldBoxSize              = kwargs.get('world_box', 1000)
+            # self._cellStep                  =
         return
 
     def _transferCoordinates(self, **kwargs):
@@ -389,7 +402,13 @@ class SingleInductionCalculator:
             if len(index)>1:
                 raise ValueError("Template has magnetic moment not on X or Y or Z direction")
             Vs                         *= part_magnetic_moment[index[0]] / self._partMagneticMoment[index[0]]
-        return np.asarray(Vs)*self._numCoilTurns
+        # calculate the sample times
+        sample_times                    = np.linspace(
+            -0.5*self.getBoxSize()/part_speed/self._speedOfLight,
+            +0.5*self.getBoxSize()/part_speed/self._speedOfLight,
+            self.getNumberOfSamples()
+        )
+        return (np.asarray(Vs)*self._numCoilTurns, sample_times)
 
 
 ##########################################
@@ -435,10 +454,14 @@ class MultipleInductionCalculator:
 
     def calcInductionVoltage(self, **kwargs):
         Vs                  = None
+        sample_times        = None
         for index, calculator in enumerate(self._calculators):
             if index==0:
-                Vs          = calculator.calcInductionVoltage(**kwargs)
+                Obj             = calculator.calcInductionVoltage(**kwargs)
+                sample_times    = Obj[-1]
+                Vs              = Obj[0]
             else:
-                Vs         += calculator.calcInductionVoltage(**kwargs)
-        return Vs
+                Obj             = calculator.calcInductionVoltage(**kwargs)
+                Vs             += Obj[0]
+        return (Vs, sample_times)
 

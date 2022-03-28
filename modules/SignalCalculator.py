@@ -164,6 +164,7 @@ class SignalCalculator:
         self._outputDict['hit_times']               = [] # hit times of each coil
         self._outputDict['voltages_wo_noise']       = [] # voltages without thermal noise
         self._outputDict['voltages']                = []
+        self._outputDict['sample_times']            = [] # sample times, 0 is the point when particle reaches the closest point with respect to the center of coil
         if self._calculateRLC:
             self._outputDict['sampling_times_RLC']      = []
             self._outputDict['voltages_RLC']            = []
@@ -289,6 +290,7 @@ class SignalCalculator:
         self._hit_times                 = np.asarray(self._hit_times)
         self._coil_ids                  = np.asarray(self._coil_ids)
         self._voltages                  = np.asarray(self._voltages)
+        self._sample_times              = np.zeros(shape=self._voltages.shape)
         self._voltages_wo_noise         = np.zeros(shape=self._voltages.shape)
         return
 
@@ -316,7 +318,7 @@ class SignalCalculator:
             # debug
             # print("===>>> Hit coil id = "+str(hit_info['coil_id']))
             # calculate voltage
-            voltages                    = self._inductionCalculator.calcInductionVoltage(
+            voltages, sample_times          = self._inductionCalculator.calcInductionVoltage(
                         start_point         = start_point,
                         direction           = self._part_direction,
                         coil_center         = hit_info['coil_center'],
@@ -327,6 +329,7 @@ class SignalCalculator:
                         part_magnetic_charge= self._part_magnetic_charge,
                         part_magnetic_moment= self._part_magnetic_moment
             )
+            self._sample_times[index]           += sample_times
             self._voltages_wo_noise[index]      += voltages
             self._voltages[index]               += voltages
         return
@@ -379,6 +382,7 @@ class SignalCalculator:
         self._outputDict['coil_ids'].append(deepcopy(self._coil_ids))
         self._outputDict['hit_times'].append(deepcopy(self._hit_times))
         self._outputDict['voltages'].append(deepcopy(self._voltages))
+        self._outputDict['sample_times'].append(deepcopy(self._sample_times))
         self._outputDict['voltages_wo_noise'].append(deepcopy(self._voltages_wo_noise))
         if self._calculateRLC:
             self._outputDict['voltages_RLC'].append(deepcopy(self._voltages_RLC))
