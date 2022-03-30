@@ -7,6 +7,7 @@
 import numpy as np
 import pickle as pkl
 from copy import deepcopy
+from scipy import special
 
 
 
@@ -63,6 +64,7 @@ class SingleInductionCalculator:
         self._magneticPermiability  = 1.2566e-6 # N/A^2
         self._electronCharge        = 1.602e-19 # C
         self._reducedPlanckConstant = 1.0546e-34 # J s
+        self._diracMagneticCharge   = 4.14125e-15 # Wb
         return
 
 
@@ -74,7 +76,8 @@ class SingleInductionCalculator:
         '''
         # load info
         self._numCoilTurns              = kwargs.get('num_coil_turns', 100)
-        if not kwargs.get('loading_analytic', False):
+        self._usingAnalytic             = kwargs.get('using_analytic', False)
+        if not self._usingAnalytic:
             ##############################
             # Load simulated field
             ##############################
@@ -107,10 +110,15 @@ class SingleInductionCalculator:
         else:
             ##############################
             # Load analytic calculator
+            # analytic method is based on sample times
+            # NOTE currently analytic method is only available for monopole
             ##############################
             # get information
-            self._worldBoxSize              = kwargs.get('world_box', 1000)
-            # self._cellStep                  =
+            self._worldBoxSize              = kwargs.get('world_box_size', 1000) # unit in mm
+            self._startZ                    = kwargs.get('start_z', 500) # unit in mm
+            self._numSamples                = kwargs.get('num_samples', 1000)
+            self._partType                  = 0 # hard coded, currently analytic method is only applicable to monopole calculation
+            self._particleStep              = self._worldBoxSize / float(self._numSamples - 1)
         return
 
     def _transferCoordinates(self, **kwargs):
@@ -334,7 +342,251 @@ class SingleInductionCalculator:
         return self._particleStep
 
     def getNumberOfSamples(self):
-        return self._B.shape[0]
+        if self._usingAnalytic:
+            return self._numSamples
+        else:
+            return self._B.shape[0]
+
+    #########################################
+    ## Two methods for calculating induction voltages
+    #########################################
+    def calcInductionVoltageFiniteElement(self, **kwargs):
+        '''
+        Calculate the induction voltage based on input B field template, produced using finite element method.
+        :param kwargs:
+        :return:
+        '''
+        # load info
+        part_start_point = kwargs.get('start_point', np.zeros(3))
+        part_direction = kwargs.get('direction', np.asarray([0, 0, 1]))
+        coil_center = kwargs.get('coil_center', np.zeros(3))
+        coil_direction = kwargs.get('coil_direction', np.asarray([0, 0, 1]))
+        coil_diameter = kwargs.get('coil_diameter', 100)
+        part_speed = kwargs.get('part_speed', 0.001)
+        part_electric_charge = kwargs.get('part_electric_charge', 1)
+        part_magnetic_charge = kwargs.get('part_magnetic_charge', 1)
+        part_magnetic_moment = kwargs.get('part_magnetic_moment', [0, 0, 9.284e-24])
+        # transfer the coordinates so that particle moves along Z+
+        # and coil center on X+
+        # # debug
+        # print("coil_center = "+str(coil_center))
+        # print("coil_direction = "+str(coil_direction))
+        coil_center_prime, coil_direction_prime = self._transferCoordinates(
+            part_start_point=part_start_point,
+            part_direction=part_direction,
+            coil_center=coil_center,
+            coil_direction=coil_direction,
+        )
+        # # debug
+        # print("coil_center_prime = "+str(coil_center_prime))
+        # print("coil_direction_prime = "+str(coil_direction_prime))
+        # get the index of cells that will be used to calculate B
+        xinds, yinds, zinds = self._getCoilSurfaceIndex(
+            coil_center=coil_center_prime,
+            coil_direction=coil_direction_prime,
+            coil_diameter=coil_diameter,
+        )
+        # debug
+        # print("xinds = "+str(xinds))
+        # print("yinds = "+str(yinds))
+        # print("zinds = "+str(zinds))
+        # calculate B flux
+        Delta_B = self._B[1:, :, :, :, :] - self._B[:-1, :, :, :, :]
+        Delta_t = self._particleStep / (self._speedOfLight * self._partSpeed)  # in ns
+        BFlux = np.sum(
+            Delta_B[:, :, xinds, yinds, zinds] * self._cellStep ** 2,
+            axis=(1, 2)
+        )
+        # print("BFlux shape = "+str(BFlux.shape))
+        # convert to right unit
+        BFlux *= 1.e-15  # V/s
+        # get the voltages
+        Vs = np.append(
+            np.zeros(1),
+            -BFlux / Delta_t * 1e9  # in V
+        )
+        # scale the voltages due to the different particle properties
+        Vs *= part_speed / self._partSpeed
+        if self._partType == 0:
+            Vs *= part_magnetic_charge / self._partMagneticCharge
+        elif self._partType == 1:
+            Vs *= part_electric_charge / self._partElectricCharge
+        elif self._partType == 2:
+            index = np.where(self._partMagneticMoment != 0)[0]
+            if len(index) > 1:
+                raise ValueError("Template has magnetic moment not on X or Y or Z direction")
+            Vs *= part_magnetic_moment[index[0]] / self._partMagneticMoment[index[0]]
+        # calculate the sample times
+        sample_times = np.linspace(
+            -0.5 * self.getBoxSize() / part_speed / self._speedOfLight,
+            +0.5 * self.getBoxSize() / part_speed / self._speedOfLight,
+            self.getNumberOfSamples()
+        )
+        return (np.asarray(Vs) * self._numCoilTurns, sample_times)
+
+
+    def calcInductionVoltageAnalytic(self, **kwargs):
+        '''
+        Calculate the induction voltage based on analytic method.
+        Note currently this method in ONLY applicable to monopole-related calculation.
+        Calculation copy right @Xiang Kang
+        :param kwargs:
+        :return:
+        '''
+        #####################
+        # load info
+        #####################
+        part_start_point                = kwargs.get('start_point', np.zeros(3))
+        part_direction                  = kwargs.get('direction', np.asarray([0, 0, 1]))
+        coil_center                     = kwargs.get('coil_center', np.zeros(3))
+        coil_direction                  = kwargs.get('coil_direction', np.asarray([0, 0, 1]))
+        coil_diameter                   = kwargs.get('coil_diameter', 100)
+        part_speed                      = kwargs.get('part_speed', 0.001)
+        part_magnetic_charge            = kwargs.get('part_magnetic_charge', 1)
+        #####################
+        # Get the derivative parameters
+        #####################
+        t                               = np.linspace(
+            0.,
+            self._worldBoxSize / part_speed / self._speedOfLight,
+            int(self._numSamples)
+        )  # in ns
+        direction_theta, direction_phi, start_rho, closest_point_distance           = self.getParInCoilCylindricalCoord(
+            part_start_point,
+            part_direction,
+            coil_center,
+            coil_direction,
+            self._startZ, # Z when T=0, set by user
+        ) # all in mm
+        t                              *= 1e-9 # in s
+        #####################
+        # Convert to another unit system
+        # to make the equations readable and simpler
+        #####################
+        theta                   = direction_theta                                       # rad
+        phi                     = direction_phi                                         # rad
+        coil_radius             = coil_diameter / 2. * 1e-3                             # m
+        vN                      = part_speed * self._speedOfLight * 1e6 / coil_radius   # m/s
+        start_rhoN              = start_rho*1e-3 / coil_radius                          # m/m
+        start_zN                = self._startZ*1e-3 / coil_radius                       # m/m
+        #####################
+        # calculate rho/coil_radius and Z/radius value for Ts
+        #####################
+        rhoN                    = np.sqrt((vN*t*np.sin(theta))**2+start_rhoN**2+2*vN*t*start_rhoN*np.sin(theta)*np.cos(phi))
+        zN                      = vN*t*np.cos(theta)-start_zN
+        #####################
+        # calculate the time differential of solid angle
+        #####################
+        if theta==0:
+            # corresponding to the case where particle passing coil plane perpendicularly
+            factor              = 2 * vN / ((vN * t) ** 2 + (rhoN - 1) ** 2) / np.sqrt((vN * t) ** 2 + (rhoN + 1) ** 2)
+            part1               = -((vN * t) ** 2 + (rhoN - 1) ** 2) * special.ellipk(4 * rhoN / ((vN * t) ** 2 + (1 + rhoN) ** 2))
+            part2               = ((vN * t) ** 2 + rhoN ** 2 - 1) * special.ellipe(4 * rhoN / ((vN * t) ** 2 + (1 + rhoN) ** 2))
+            omegaT              = factor*(part1+part2)
+            omegaT[0]           = 0 # to avoid nan, hardcoding
+        elif start_rhoN==0:
+            # t==0 would be none calculatable
+            omegaT_0            = -2*np.pi*np.sqrt(1+zN**2)*vN*np.cos(theta)/(zN**2+1)**2
+            factor              = 2 / (zN ** 2 + (1 - rhoN) ** 2) / rhoN / np.sqrt(zN ** 2 + (1 + rhoN) ** 2)
+            rhoT                = (vN * start_rhoN * np.cos(phi) * np.sin(theta) + vN ** 2 * t * np.sin(theta) ** 2) / rhoN
+            zT                  = vN * np.cos(theta)
+            part1               = (zN ** 2 + (1 - rhoN) ** 2) * (zN * rhoT - rhoN * zT) * special.ellipk(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
+            part2               = (zT * rhoN * (rhoN ** 2 + zN ** 2 - 1) - zN * (1 + zN ** 2 + rhoN ** 2) * rhoT) * special.ellipe(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
+            omegaT              = factor * (part1 + part2)
+            omegaT[0]           = omegaT_0
+        else:
+            # corresponding to general case
+            factor              = 2 / (zN ** 2 + (1 - rhoN) ** 2) / rhoN / np.sqrt(zN ** 2 + (1 + rhoN) ** 2)
+            rhoT                = (vN * start_rhoN * np.cos(phi) * np.sin(theta) + vN ** 2 * t * np.sin(theta) ** 2) / rhoN
+            zT                  = vN * np.cos(theta)
+            part1               = (zN ** 2 + (1 - rhoN) ** 2) * (zN * rhoT - rhoN * zT) * special.ellipk(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
+            part2               = (zT * rhoN * (rhoN ** 2 + zN ** 2 - 1) - zN * (1 + zN ** 2 + rhoN ** 2) * rhoT) * special.ellipe(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
+            omegaT = factor * (part1 + part2)
+        ######################
+        ## calculate the induction voltage
+        ## and the sample_times
+        ######################
+        em                      = -float(self._numCoilTurns)*self._diracMagneticCharge*part_magnetic_charge/4./np.pi*omegaT
+        closest_point_time      = closest_point_distance / part_speed / self._speedOfLight # in ns
+        sample_times            = t*1e9 - closest_point_time # in ns
+        return (em, sample_times)
+
+
+    def getParInCoilCylindricalCoord(self, part_start_point, part_direction, coil_center, coil_direction, new_start_Z):
+        '''
+        Calculate the direction_theta, direction_phi, new_start_rho par for analytic method
+        Also calculate the distance between closest point with respect to coil center to the start point
+        :param part_start_point:
+        :param part_direction:
+        :param coil_center:
+        :param coil_direction:
+        :param new_start_Z: Note this is under transferred coordinates, not the same as above
+        :return:
+        '''
+        # to numpy
+        part_start_point            = np.asarray(part_start_point)
+        part_direction              = np.asarray(part_direction)
+        coil_center                 = np.asarray(coil_center)
+        coil_direction              = np.asarray(coil_direction)
+        #######################
+        # Translate until coil_center is at 000
+        #######################
+        translation                 = -coil_center
+        part_start_point            = self._translate(part_start_point, translation)
+        coil_center                 = self._translate(coil_center, translation)
+        #######################
+        ## rotate until coil_direction is on YZ plane
+        #######################
+        angle                       = np.pi/2. - np.arctan2(coil_direction[1], coil_direction[0])
+        part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
+        coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
+        #######################
+        # Rotate until coil direction is on Z+
+        #######################
+        angle                       = np.pi/2. - np.arctan2(coil_direction[2], coil_direction[1])
+        part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=0)
+        coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=0)
+        #######################
+        # Mirror with respect to XY plane
+        # if coil_direction[2]*start_Z < 0
+        #######################
+        if coil_direction[2]*new_start_Z>0:
+            part_start_point[2]                    *= -1
+            part_direction[2]                      *= -1
+        #######################
+        # Re-define the start point to match customized start_z
+        #######################
+        translation_length                          = (new_start_Z - part_start_point[2])/part_direction[2]
+        part_start_point                           += translation_length*part_direction
+        #######################
+        # Rotate until start_point has Y=0
+        #######################
+        angle                                       = np.pi/2. - np.arctan2(part_start_point[1], part_start_point[0])
+        part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
+        coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
+        #######################
+        # Calculate the closest point
+        #######################
+        closest_distance                            = -np.sum(part_start_point*part_direction) / np.sum(part_direction**2)
+        #######################
+        # calculate outputs
+        #######################
+        direction_theta                             = np.pi/2. - np.arctan2(part_direction[2], np.sqrt(part_direction[0]**2+part_direction[1]**2))
+        direction_phi                               = np.arctan2(part_direction[1], part_direction[0])
+        if direction_phi<0:
+            direction_phi                          += 2.*np.pi
+        new_start_rho                               = np.sqrt(part_start_point[0]**2+part_start_point[1]**2)
+        return (
+            direction_theta,
+            direction_phi,
+            new_start_rho,
+            closest_distance
+        )
+
+
+    #########################################
+    #########################################
+
 
     def calcInductionVoltage(self, **kwargs):
         '''
@@ -342,73 +594,10 @@ class SingleInductionCalculator:
         :param kwargs:
         :return:
         '''
-        # load info
-        part_start_point                = kwargs.get('start_point', np.zeros(3))
-        part_direction                  = kwargs.get('direction', np.asarray([0,0,1]))
-        coil_center                     = kwargs.get('coil_center', np.zeros(3))
-        coil_direction                  = kwargs.get('coil_direction', np.asarray([0,0,1]))
-        coil_diameter                   = kwargs.get('coil_diameter', 100)
-        part_speed                      = kwargs.get('part_speed', 0.001)
-        part_electric_charge            = kwargs.get('part_electric_charge', 1)
-        part_magnetic_charge            = kwargs.get('part_magnetic_charge', 1)
-        part_magnetic_moment            = kwargs.get('part_magnetic_moment', [0,0,9.284e-24])
-        # transfer the coordinates so that particle moves along Z+
-        # and coil center on X+
-        # # debug
-        # print("coil_center = "+str(coil_center))
-        # print("coil_direction = "+str(coil_direction))
-        coil_center_prime, coil_direction_prime     = self._transferCoordinates(
-            part_start_point            = part_start_point,
-            part_direction              = part_direction,
-            coil_center                 = coil_center,
-            coil_direction              = coil_direction,
-        )
-        # # debug
-        # print("coil_center_prime = "+str(coil_center_prime))
-        # print("coil_direction_prime = "+str(coil_direction_prime))
-        # get the index of cells that will be used to calculate B
-        xinds, yinds, zinds             = self._getCoilSurfaceIndex(
-            coil_center                 = coil_center_prime,
-            coil_direction              = coil_direction_prime,
-            coil_diameter               = coil_diameter,
-        )
-        # debug
-        # print("xinds = "+str(xinds))
-        # print("yinds = "+str(yinds))
-        # print("zinds = "+str(zinds))
-        # calculate B flux
-        Delta_B                         = self._B[1:,:,:,:,:] - self._B[:-1,:,:,:,:]
-        Delta_t                         = self._particleStep / (self._speedOfLight*self._partSpeed) # in ns
-        BFlux                           = np.sum(
-            Delta_B[:, :, xinds, yinds, zinds]*self._cellStep**2,
-            axis                        =(1,2)
-        )
-        # print("BFlux shape = "+str(BFlux.shape))
-        # convert to right unit
-        BFlux                          *= 1.e-15 # V/s
-        # get the voltages
-        Vs                              = np.append(
-            np.zeros(1),
-            -BFlux/Delta_t*1e9 # in V
-        )
-        # scale the voltages due to the different particle properties
-        Vs                             *= part_speed/self._partSpeed
-        if self._partType==0:
-            Vs                         *= part_magnetic_charge / self._partMagneticCharge
-        elif self._partType==1:
-            Vs                         *= part_electric_charge / self._partElectricCharge
-        elif self._partType==2:
-            index                       = np.where(self._partMagneticMoment!=0)[0]
-            if len(index)>1:
-                raise ValueError("Template has magnetic moment not on X or Y or Z direction")
-            Vs                         *= part_magnetic_moment[index[0]] / self._partMagneticMoment[index[0]]
-        # calculate the sample times
-        sample_times                    = np.linspace(
-            -0.5*self.getBoxSize()/part_speed/self._speedOfLight,
-            +0.5*self.getBoxSize()/part_speed/self._speedOfLight,
-            self.getNumberOfSamples()
-        )
-        return (np.asarray(Vs)*self._numCoilTurns, sample_times)
+        if self._usingAnalytic:
+            return self.calcInductionVoltageAnalytic(**kwargs)
+        else:
+            return self.calcInductionVoltageFiniteElement(**kwargs)
 
 
 ##########################################
@@ -434,7 +623,6 @@ class MultipleInductionCalculator:
             raise ValueError("No config is given for Multiple induction calculator!")
         elif len(np.unique(part_types))>1 or len(np.unique(box_sizes))>1:
             raise ValueError("Input configs for multiple induction are with different particle types!")
-
         return
 
     #########################################
