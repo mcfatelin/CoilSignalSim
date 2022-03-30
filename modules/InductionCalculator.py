@@ -196,12 +196,14 @@ class SingleInductionCalculator:
                 [0, 1, 0],
                 [-np.sin(angle), 0, +np.cos(angle)],
             ])
-        else:
+        elif axis==2:
             rotation_matrix = np.asarray([
                 [np.cos(angle), -np.sin(angle), 0],
                 [np.sin(angle), +np.cos(angle), 0],
                 [0,0,1.]
             ])
+        else:
+            pass
         x1_r                = np.dot(
             rotation_matrix,
             np.reshape(x1, newshape=(3,1))
@@ -479,9 +481,9 @@ class SingleInductionCalculator:
         #####################
         if theta==0:
             # corresponding to the case where particle passing coil plane perpendicularly
-            factor              = 2 * vN / ((vN * t) ** 2 + (rhoN - 1) ** 2) / np.sqrt((vN * t) ** 2 + (rhoN + 1) ** 2)
-            part1               = -((vN * t) ** 2 + (rhoN - 1) ** 2) * special.ellipk(4 * rhoN / ((vN * t) ** 2 + (1 + rhoN) ** 2))
-            part2               = ((vN * t) ** 2 + rhoN ** 2 - 1) * special.ellipe(4 * rhoN / ((vN * t) ** 2 + (1 + rhoN) ** 2))
+            factor              = 2 * vN / (zN ** 2 + (rhoN - 1) ** 2) / np.sqrt(zN ** 2 + (rhoN + 1) ** 2)
+            part1               = -(zN ** 2 + (rhoN - 1) ** 2) * special.ellipk(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
+            part2               = (zN ** 2 + rhoN ** 2 - 1) * special.ellipe(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
             omegaT              = factor*(part1+part2)
             omegaT[0]           = 0 # to avoid nan, hardcoding
         elif start_rhoN==0:
@@ -531,18 +533,40 @@ class SingleInductionCalculator:
         #######################
         # Translate until coil_center is at 000
         #######################
+        # debug
+        print("=================")
+        print("Before translation:")
+        print("===>>> Coil center = "+str(coil_center))
+        print("===>>> Coil Direction = "+str(coil_direction))
+        print("===>>> Part. start point = "+str(part_start_point))
+        print("===>>> Part. direction = "+str(part_direction))
+        print()
         translation                 = -coil_center
         part_start_point            = self._translate(part_start_point, translation)
         coil_center                 = self._translate(coil_center, translation)
         #######################
         ## rotate until coil_direction is on YZ plane
         #######################
+        # debug
+        print("Before coil direction rotation along Z+:")
+        print("===>>> Coil center = "+str(coil_center))
+        print("===>>> Coil Direction = "+str(coil_direction))
+        print("===>>> Part. start point = "+str(part_start_point))
+        print("===>>> Part. direction = "+str(part_direction))
+        print()
         angle                       = np.pi/2. - np.arctan2(coil_direction[1], coil_direction[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
         #######################
         # Rotate until coil direction is on Z+
         #######################
+        # debug
+        print("Before coil direction rotation along X+:")
+        print("===>>> Coil center = "+str(coil_center))
+        print("===>>> Coil Direction = "+str(coil_direction))
+        print("===>>> Part. start point = "+str(part_start_point))
+        print("===>>> Part. direction = "+str(part_direction))
+        print()
         angle                       = np.pi/2. - np.arctan2(coil_direction[2], coil_direction[1])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=0)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=0)
@@ -550,17 +574,38 @@ class SingleInductionCalculator:
         # Mirror with respect to XY plane
         # if coil_direction[2]*start_Z < 0
         #######################
+        # debug
+        print("Before possible mirroring:")
+        print("===>>> Coil center = "+str(coil_center))
+        print("===>>> Coil Direction = "+str(coil_direction))
+        print("===>>> Part. start point = "+str(part_start_point))
+        print("===>>> Part. direction = "+str(part_direction))
+        print()
         if coil_direction[2]*new_start_Z>0:
             part_start_point[2]                    *= -1
             part_direction[2]                      *= -1
         #######################
         # Re-define the start point to match customized start_z
         #######################
+        # debug
+        print("Before redefine part. start point:")
+        print("===>>> Coil center = "+str(coil_center))
+        print("===>>> Coil Direction = "+str(coil_direction))
+        print("===>>> Part. start point = "+str(part_start_point))
+        print("===>>> Part. direction = "+str(part_direction))
+        print()
         translation_length                          = (new_start_Z - part_start_point[2])/part_direction[2]
         part_start_point                           += translation_length*part_direction
         #######################
         # Rotate until start_point has Y=0
         #######################
+        # debug
+        print("Before start point rotation to Y=0:")
+        print("===>>> Coil center = "+str(coil_center))
+        print("===>>> Coil Direction = "+str(coil_direction))
+        print("===>>> Part. start point = "+str(part_start_point))
+        print("===>>> Part. direction = "+str(part_direction))
+        print("=================")
         angle                                       = np.pi/2. - np.arctan2(part_start_point[1], part_start_point[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
