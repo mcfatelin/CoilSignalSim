@@ -115,7 +115,7 @@ class SingleInductionCalculator:
             ##############################
             # get information
             self._worldBoxSize              = kwargs.get('world_box_size', 1000) # unit in mm
-            self._startZ                    = kwargs.get('start_z', 500) # unit in mm
+            self._distanceBeforeZero        = kwargs.get('distance_before_zero', 500) # unit in mm, distance before reaching the closest point with respect to the coil center
             self._numSamples                = kwargs.get('num_samples', 1000)
             self._partType                  = 0 # hard coded, currently analytic method is only applicable to monopole calculation
             self._particleStep              = self._worldBoxSize / float(self._numSamples - 1)
@@ -453,12 +453,12 @@ class SingleInductionCalculator:
             self._worldBoxSize / part_speed / self._speedOfLight,
             int(self._numSamples)
         )  # in ns
-        direction_theta, direction_phi, start_rho, closest_point_distance           = self.getParInCoilCylindricalCoord(
+        direction_theta, direction_phi, start_rho, start_z            = self.getParInCoilCylindricalCoord(
             part_start_point,
             part_direction,
             coil_center,
             coil_direction,
-            self._startZ, # Z when T=0, set by user
+            self._distanceBeforeZero,
         ) # all in mm
         t                              *= 1e-9 # in s
         #####################
@@ -470,7 +470,7 @@ class SingleInductionCalculator:
         coil_radius             = coil_diameter / 2. * 1e-3                             # m
         vN                      = part_speed * self._speedOfLight * 1e6 / coil_radius   # m/s
         start_rhoN              = start_rho*1e-3 / coil_radius                          # m/m
-        start_zN                = self._startZ*1e-3 / coil_radius                       # m/m
+        start_zN                = -start_z*1e-3 / coil_radius                            # m/m
         #####################
         # calculate rho/coil_radius and Z/radius value for Ts
         #####################
@@ -485,7 +485,7 @@ class SingleInductionCalculator:
             part1               = -(zN ** 2 + (rhoN - 1) ** 2) * special.ellipk(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
             part2               = (zN ** 2 + rhoN ** 2 - 1) * special.ellipe(4 * rhoN / (zN ** 2 + (1 + rhoN) ** 2))
             omegaT              = factor*(part1+part2)
-            omegaT[0]           = 0 # to avoid nan, hardcoding
+            # omegaT[0]           = 0 # to avoid nan, hardcoding
         elif start_rhoN==0:
             # t==0 would be none calculatable
             omegaT_0            = -2*np.pi*np.sqrt(1+zN**2)*vN*np.cos(theta)/(zN**2+1)**2
@@ -509,12 +509,12 @@ class SingleInductionCalculator:
         ## and the sample_times
         ######################
         em                      = -float(self._numCoilTurns)*self._diracMagneticCharge*part_magnetic_charge/4./np.pi*omegaT
-        closest_point_time      = closest_point_distance / part_speed / self._speedOfLight # in ns
+        closest_point_time      = self._distanceBeforeZero / part_speed / self._speedOfLight # in ns
         sample_times            = t*1e9 - closest_point_time # in ns
         return (em, sample_times)
 
 
-    def getParInCoilCylindricalCoord(self, part_start_point, part_direction, coil_center, coil_direction, new_start_Z):
+    def getParInCoilCylindricalCoord(self, part_start_point, part_direction, coil_center, coil_direction, distance_before_zero):
         '''
         Calculate the direction_theta, direction_phi, new_start_rho par for analytic method
         Also calculate the distance between closest point with respect to coil center to the start point
@@ -526,93 +526,66 @@ class SingleInductionCalculator:
         :return:
         '''
         # to numpy
-        part_start_point            = np.asarray(part_start_point)
-        part_direction              = np.asarray(part_direction)
-        coil_center                 = np.asarray(coil_center)
-        coil_direction              = np.asarray(coil_direction)
+        part_start_point            = np.asarray(part_start_point).astype(np.float)
+        part_direction              = np.asarray(part_direction).astype(np.float)
+        coil_center                 = np.asarray(coil_center).astype(np.float)
+        coil_direction              = np.asarray(coil_direction).astype(np.float)
+        # normalize
+        part_direction              /= np.sqrt(np.sum(part_direction**2))
+        coil_direction              /= np.sqrt(np.sum(coil_direction**2))
         #######################
         # Translate until coil_center is at 000
         #######################
-        # debug
-        print("=================")
-        print("Before translation:")
-        print("===>>> Coil center = "+str(coil_center))
-        print("===>>> Coil Direction = "+str(coil_direction))
-        print("===>>> Part. start point = "+str(part_start_point))
-        print("===>>> Part. direction = "+str(part_direction))
-        print()
+        # # debug
+        # print("=================")
+        # print("Before translation:")
+        # print("===>>> Coil center = "+str(coil_center))
+        # print("===>>> Coil Direction = "+str(coil_direction))
+        # print("===>>> Part. start point = "+str(part_start_point))
+        # print("===>>> Part. direction = "+str(part_direction))
+        # print()
         translation                 = -coil_center
         part_start_point            = self._translate(part_start_point, translation)
         coil_center                 = self._translate(coil_center, translation)
         #######################
         ## rotate until coil_direction is on YZ plane
         #######################
-        # debug
-        print("Before coil direction rotation along Z+:")
-        print("===>>> Coil center = "+str(coil_center))
-        print("===>>> Coil Direction = "+str(coil_direction))
-        print("===>>> Part. start point = "+str(part_start_point))
-        print("===>>> Part. direction = "+str(part_direction))
-        print()
+        # # debug
+        # print("Before coil direction rotation along Z+:")
+        # print("===>>> Coil center = "+str(coil_center))
+        # print("===>>> Coil Direction = "+str(coil_direction))
+        # print("===>>> Part. start point = "+str(part_start_point))
+        # print("===>>> Part. direction = "+str(part_direction))
+        # print()
         angle                       = np.pi/2. - np.arctan2(coil_direction[1], coil_direction[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
         #######################
         # Rotate until coil direction is on Z+
         #######################
-        # debug
-        print("Before coil direction rotation along X+:")
-        print("===>>> Coil center = "+str(coil_center))
-        print("===>>> Coil Direction = "+str(coil_direction))
-        print("===>>> Part. start point = "+str(part_start_point))
-        print("===>>> Part. direction = "+str(part_direction))
-        print()
+        # # debug
+        # print("Before coil direction rotation along X+:")
+        # print("===>>> Coil center = "+str(coil_center))
+        # print("===>>> Coil Direction = "+str(coil_direction))
+        # print("===>>> Part. start point = "+str(part_start_point))
+        # print("===>>> Part. direction = "+str(part_direction))
+        # print()
         angle                       = np.pi/2. - np.arctan2(coil_direction[2], coil_direction[1])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=0)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=0)
         #######################
-        # Mirror with respect to XY plane
-        # if coil_direction[2]*start_Z < 0
-        #######################
-        # debug
-        print("Before possible mirroring:")
-        print("===>>> Coil center = "+str(coil_center))
-        print("===>>> Coil Direction = "+str(coil_direction))
-        print("===>>> Part. start point = "+str(part_start_point))
-        print("===>>> Part. direction = "+str(part_direction))
-        print()
-        if coil_direction[2]*new_start_Z>0:
-            part_start_point[2]                    *= -1
-            part_direction[2]                      *= -1
-        #######################
-        # Re-define the start point to match customized start_z
-        #######################
-        # debug
-        print("Before redefine part. start point:")
-        print("===>>> Coil center = "+str(coil_center))
-        print("===>>> Coil Direction = "+str(coil_direction))
-        print("===>>> Part. start point = "+str(part_start_point))
-        print("===>>> Part. direction = "+str(part_direction))
-        print()
-        translation_length                          = (new_start_Z - part_start_point[2])/part_direction[2]
-        part_start_point                           += translation_length*part_direction
-        #######################
         # Rotate until start_point has Y=0
         #######################
-        # debug
-        print("Before start point rotation to Y=0:")
-        print("===>>> Coil center = "+str(coil_center))
-        print("===>>> Coil Direction = "+str(coil_direction))
-        print("===>>> Part. start point = "+str(part_start_point))
-        print("===>>> Part. direction = "+str(part_direction))
-        print("=================")
+        # # debug
+        # print("Before start point rotation to Y=0:")
+        # print("===>>> Coil center = "+str(coil_center))
+        # print("===>>> Coil Direction = "+str(coil_direction))
+        # print("===>>> Part. start point = "+str(part_start_point))
+        # print("===>>> Part. direction = "+str(part_direction))
+        # print("=================")
         angle                                       = np.pi/2. - np.arctan2(part_start_point[1], part_start_point[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
-        #######################
-        # Calculate the closest point
-        #######################
-        closest_distance                            = -np.sum(part_start_point*part_direction) / np.sum(part_direction**2)
         #######################
         # calculate outputs
         #######################
@@ -620,12 +593,35 @@ class SingleInductionCalculator:
         direction_phi                               = np.arctan2(part_direction[1], part_direction[0])
         if direction_phi<0:
             direction_phi                          += 2.*np.pi
+        #######################
+        # Calculate the closest point
+        #######################
+        closest_distance_from_start                 = -np.sum(part_start_point * part_direction) / np.sum(part_direction ** 2)
+        #######################
+        # Re-define the start point to match customized start_z
+        #######################
+        # # debug
+        # print("Before redefine part. start point:")
+        # print("===>>> Coil center = "+str(coil_center))
+        # print("===>>> Coil Direction = "+str(coil_direction))
+        # print("===>>> Part. start point = "+str(part_start_point))
+        # print("===>>> Part. direction = "+str(part_direction))
+        # print()
+        part_start_point                            += (closest_distance_from_start - distance_before_zero)*part_direction
+        new_start_z                                 = part_start_point[2]
         new_start_rho                               = np.sqrt(part_start_point[0]**2+part_start_point[1]**2)
+        # debug
+        print("Outputs:")
+        print("===>>> Direction theta = "+str(direction_theta))
+        print("===>>> Direction phi = "+str(direction_phi))
+        print("===>>> start_rho = "+str(new_start_rho))
+        print("===>>> start_z = "+str(new_start_z))
+        print()
         return (
             direction_theta,
             direction_phi,
             new_start_rho,
-            closest_distance
+            new_start_z,
         )
 
 

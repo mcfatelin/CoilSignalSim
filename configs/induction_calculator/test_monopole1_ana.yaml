@@ -20,7 +20,7 @@ field_config:
   num_coil_turns: 100
   using_analytic: True
   world_box_size: 1000
-  start_z: 400
+  distance_before_zero: 400
   num_samples: 1000
 noise_config:
   R:  0.0
