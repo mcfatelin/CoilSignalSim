@@ -583,6 +583,10 @@ class SingleInductionCalculator:
         # print("===>>> Part. start point = "+str(part_start_point))
         # print("===>>> Part. direction = "+str(part_direction))
         # print("=================")
+        if part_start_point[0]**2+part_start_point[1]**2<0.0001:
+            # if start point XY is too close to 0
+            # shift it a bit
+            part_start_point            += 10.*part_direction
         angle                                       = np.pi/2. - np.arctan2(part_start_point[1], part_start_point[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
@@ -611,12 +615,12 @@ class SingleInductionCalculator:
         new_start_z                                 = part_start_point[2]
         new_start_rho                               = np.sqrt(part_start_point[0]**2+part_start_point[1]**2)
         # debug
-        print("Outputs:")
-        print("===>>> Direction theta = "+str(direction_theta))
-        print("===>>> Direction phi = "+str(direction_phi))
-        print("===>>> start_rho = "+str(new_start_rho))
-        print("===>>> start_z = "+str(new_start_z))
-        print()
+        # print("Outputs:")
+        # print("===>>> Direction theta = "+str(direction_theta))
+        # print("===>>> Direction phi = "+str(direction_phi))
+        # print("===>>> start_rho = "+str(new_start_rho))
+        # print("===>>> start_z = "+str(new_start_z))
+        # print()
         return (
             direction_theta,
             direction_phi,
