@@ -1,0 +1,30 @@
+coil_diameter: 100 # unit in mm
+world_box_size: 1000
+calculateRLC: True
+particles:
+  part_type: 0 # Monopole
+  start_point_r: 500
+  start_point_theta: 3.141592653
+  start_point_phi: 0.0
+  direction_theta: [0,0.1]
+  direction_phi: [0,6.283]
+  speed:
+    mean: 0.00001
+    std: 0.000001
+  electric_charge: 1
+  magnetic_charge: 1
+array_config:
+  coil_diameter: 100
+  coil_arrange_filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/raws/coil_arrange/single_coil_array.pkl'
+field_config:
+  num_coil_turns: 100
+  using_analytic: True
+  world_box_size: 1000
+  distance_before_zero: 400
+  num_samples: 1000
+noise_config:
+  R:  0.0
+  T:  300
+circuit_config:
+  placeholder: True
+

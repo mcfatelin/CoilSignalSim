@@ -29,7 +29,12 @@ if len(sys.argv)>3:
 
 Dict                            = pkl.load(open(InputFilename, 'rb'))
 
-
+#############################
+## Print out info
+#############################
+print("===>>> Part. start point: "+str(Dict['part_centers'][EventNum]))
+print("===>>> Part. direction: "+str(Dict['part_directions'][EventNum]))
+print("===>>> Part. speed: "+str(Dict['part_speeds'][EventNum]))
 
 ############################
 ## Dump variables

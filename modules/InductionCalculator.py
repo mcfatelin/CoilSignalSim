@@ -614,7 +614,7 @@ class SingleInductionCalculator:
         part_start_point                            += (closest_distance_from_start - distance_before_zero)*part_direction
         new_start_z                                 = part_start_point[2]
         new_start_rho                               = np.sqrt(part_start_point[0]**2+part_start_point[1]**2)
-        # debug
+        # # debug
         # print("Outputs:")
         # print("===>>> Direction theta = "+str(direction_theta))
         # print("===>>> Direction phi = "+str(direction_phi))

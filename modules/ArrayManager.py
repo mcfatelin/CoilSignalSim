@@ -55,9 +55,12 @@ class ArrayManager:
         # load info
         part_start_point            = kwargs.get('part_start_point', np.asarray([0,0,0]))
         part_direction              = kwargs.get('part_direction', np.asarray([0,0,1]))
-        part_speed                  = kwargs.get('part_speed', 2.98e2)#mm/ns
+        part_speed                  = kwargs.get('part_speed', 2.98e2) #mm/ns
         tolerance                   = kwargs.get('tolerance', self._coilDiameter)
         tolerance                  -= self._coilDiameter/2.
+        # debug
+        # print("===>>> Part. start point = "+str(part_start_point))
+        # print("===>>> Part. direction = "+str(part_direction))
         # normalize the direction
         part_direction              /= np.sqrt(np.sum(np.power(part_direction,2.)))
         # make the start_point to (N,3)
