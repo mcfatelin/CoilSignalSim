@@ -11,7 +11,7 @@ import sys
 ## Input
 ##############################
 if len(sys.argv)<2:
-    print("python3 PlotVoltageV2.py <pkl file> <Event Number> < (opt.) Output filename>")
+    print("python3 PlotVoltageV2.py <pkl file> <Event Number> < (opt.) Output filename> <(opt.) Whether to plot RLC waveforms>")
     exit()
 
 
@@ -20,7 +20,9 @@ EventNum                        = int(sys.argv[2])
 OutputFilename                  = None
 if len(sys.argv)>3:
     OutputFilename              = sys.argv[3]
-
+RLCPlotting                     = False
+if len(sys.argv)>4 and int(sys.argv[4])>0:
+    RLCPlotting                 = True
 
 
 #############################
@@ -59,6 +61,20 @@ for hit_time, voltages, sample_times in zip(
 wfs                              = np.asarray(wfs)
 Ts                               = np.asarray(Ts)
 
+if RLCPlotting:
+    wfs_RLC_sig                     = []
+    wfs_RLC_noise                   = []
+    for voltages_sig, voltages_noise in zip(
+        Dict['voltages_RLC'][EventNum],
+        Dict['noises_RLC'][EventNum],
+    ):
+        # debug
+        # print("voltages_sig = "+str(voltages_sig.real))
+        # print("voltages_noise = "+str(voltages_noise.real))
+        wfs_RLC_sig.append(voltages_sig.real)
+        wfs_RLC_noise.append(voltages_noise.real)
+    wfs_RLC_sig                     = np.asarray(wfs_RLC_sig)
+    wfs_RLC_noise                   = np.asarray(wfs_RLC_noise)
 
 #############################
 ## calculate amp and T range
@@ -67,6 +83,11 @@ amp_max                         = np.max(wfs)
 amp_min                         = np.min(wfs)
 T_max                           = np.max(Ts)
 T_min                           = np.min(Ts)
+
+if RLCPlotting:
+    amp_max                         = np.max(wfs_RLC_sig+wfs_RLC_noise)
+    amp_min                         = np.min(wfs_RLC_sig+wfs_RLC_noise)
+
 
 
 #############################
@@ -148,29 +169,64 @@ ax          = plt.subplot(gs[:,:])
 
 GlobalCMap          = plt.cm.viridis
 # plot and setting
-for ii in range(len(wfs)):
-    coil_id             = coil_ids[ii]
-    ax.plot(
-        Ts[ii],
-        wfs[ii]+1.1*float(coil_id)*(amp_max-amp_min),
-        color           = GlobalCMap(float(coil_id)/float(NumCoils)),
-        ls              = 'solid',
-        lw              = 3.,
-        label           = "Coil ID = "+str(coil_id)
-    )
+if not RLCPlotting:
+    for ii in range(len(wfs)):
+        coil_id             = coil_ids[ii]
+        ax.plot(
+            Ts[ii],
+            wfs[ii]+1.1*float(coil_id)*(amp_max-amp_min),
+            color           = GlobalCMap(float(coil_id)/float(NumCoils)),
+            ls              = 'solid',
+            lw              = 3.,
+            label           = "Coil ID = "+str(coil_id)
+        )
+
+if RLCPlotting:
+    for ii in range(len(wfs)):
+        coil_id = coil_ids[ii]
+        ax.plot(
+            Ts[ii],
+            # wfs_RLC_sig[ii]+wfs_RLC_noise[ii] + 1.1 * float(coil_id) * (amp_max - amp_min),
+            wfs_RLC_sig[ii] + 1.1 * float(coil_id) * (amp_max - amp_min),
+            color=GlobalCMap(float(coil_id) / float(NumCoils)),
+            ls='dashed',
+            lw=3.,
+            label="RLC sig Coil ID = " + str(coil_id)
+        )
+        ax.plot(
+            Ts[ii],
+            # wfs_RLC_sig[ii]+wfs_RLC_noise[ii] + 1.1 * float(coil_id) * (amp_max - amp_min),
+            wfs_RLC_noise[ii] + 1.1 * float(coil_id) * (amp_max - amp_min),
+            color=GlobalCMap(float(coil_id) / float(NumCoils)),
+            ls='dotted',
+            lw=3.,
+            label="RLC noise Coil ID = " + str(coil_id)
+        )
+        ax.plot(
+            Ts[ii],
+            wfs_RLC_sig[ii]+wfs_RLC_noise[ii] + 1.1 * float(coil_id) * (amp_max - amp_min),
+            # wfs_RLC_sig[ii] + 1.1 * float(coil_id) * (amp_max - amp_min),
+            color=GlobalCMap(float(coil_id) / float(NumCoils)),
+            ls='solid',
+            lw=3.,
+            label="RLC total Coil ID = " + str(coil_id)
+        )
 
 
 # setting
 ax.set_xlim([T_min, T_max])
-ax.set_ylim([-np.abs(amp_min), 1.1*float(NumCoils)*(amp_max-amp_min)+amp_max])
+ax.set_ylim([-np.abs(amp_min), 1.2*float(NumCoils)*(amp_max-amp_min)+amp_max])
 ax.tick_params(axis='x', labelsize=20, width=2, length=5)
 ax.tick_params(axis='y', labelsize=20, width=2, length=5)
 ax.set_xlabel('Time [ns]', fontsize=20)
-ax.set_ylabel('Voltage [V]', fontsize=20)
+if not RLCPlotting:
+    ax.set_ylabel('Voltage [V]', fontsize=20)
+else:
+    ax.set_ylabel('Current [A]', fontsize=20)
 ax.legend(
     loc                 ='best',
     fontsize            = 10,
-    ncol                = 2
+    ncol                = 3
 )
 
 if OutputFilename is not None:

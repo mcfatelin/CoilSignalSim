@@ -166,8 +166,8 @@ class SignalCalculator:
         self._outputDict['voltages']                = []
         self._outputDict['sample_times']            = [] # sample times, 0 is the point when particle reaches the closest point with respect to the center of coil
         if self._calculateRLC:
-            self._outputDict['sampling_times_RLC']      = []
             self._outputDict['voltages_RLC']            = []
+            self._outputDict['noises_RLC']              = []
         # self._outputDict['voltage_magnetometer']    = [] # to be implemented
         return
 
@@ -353,22 +353,18 @@ class SignalCalculator:
         :return:
         '''
         self._voltages_RLC              = []
-        self._sample_times_RLC          = self._circuitCalculator.getSamplingTimes()
-        for voltages, mean_hit_time in zip(self._voltages_wo_noise, self._hit_times):
+        self._noises_RLC                = []
+        for voltages, sample_times in zip(self._voltages_wo_noise, self._sample_times):
             # calculate real voltage calculation times
             NumberOfSamples             = voltages.shape[0]
-            bins                        = np.linspace(
-                mean_hit_time - float(NumberOfSamples)*self._sample_size/2.,
-                mean_hit_time + float(NumberOfSamples)*self._sample_size/2.,
-                NumberOfSamples+1
+            SampleStep                  = sample_times[1] - sample_times[0]
+            Obj                         = self._circuitCalculator.calculateVoltages(
+                voltages            = voltages, # in V
+                num_samples         = NumberOfSamples,
+                sample_step         = SampleStep, # in ns
             )
-            centers                     = 0.5*(bins[1:] + bins[:-1])
-            self._voltages_RLC.append(
-                self._circuitCalculator.calculateVoltages(
-                    voltages            = voltages, # in V
-                    times               = centers, # in ns
-                )
-            )
+            self._voltages_RLC.append(Obj[0])
+            self._noises_RLC.append(Obj[1])
         return
 
     def _save(self):
@@ -386,7 +382,7 @@ class SignalCalculator:
         self._outputDict['voltages_wo_noise'].append(deepcopy(self._voltages_wo_noise))
         if self._calculateRLC:
             self._outputDict['voltages_RLC'].append(deepcopy(self._voltages_RLC))
-            self._outputDict['sampling_times_RLC'].append(deepcopy(self._sample_times_RLC))
+            self._outputDict['noises_RLC'].append(deepcopy(self._noises_RLC))
         return
 
 

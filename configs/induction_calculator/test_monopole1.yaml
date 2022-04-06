@@ -23,5 +23,5 @@ noise_config:
   R:  1.0
   T:  300
 circuit_config:
-  placeholder: True
+  filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/raws/circuit_test/circuit_test.pkl'
 

@@ -3,33 +3,186 @@
 ## Effective serial and parallel branches are okay, but tree-level or loop-level are not supported
 ## Data structure use "tree" structure to store effective L, R, C, and I, U
 ## by Qing Lin @ 2021-12-23
+#############################
+## Updated @ 2022-04-01
+## Now we took from external circuit simulation:
+## 1) Amplitude vs freq
+## 2) Phase vs freq
+## as the response function
+## Apply this upon signal and noise frequency dist. and inverse fft to get the shaped signal and noise wf
+## Yes noise is also generated here.
 #################################################################################
 import numpy as np
 import pickle as pkl
+import scipy
+from scipy.interpolate import interp1d
+from scipy import fftpack
+from copy import deepcopy
 
 
 
 class CircuitCalculator:
     # place-holder
     def __init__(self, **kwargs):
+        self._signalInterpolates            = {}
+        self._noiseInterpolates             = []
+        if 'filename' not in kwargs.keys():
+            raise ValueError(
+                "Must give circuit config filename!"
+            )
+        self._loadConfig(kwargs['filename'])
+        # some constants
+        self._kB                            = 1.380649e-23 # J/K
         return
 
     ########################################
     ## Private functions
     ########################################
+    def _loadConfig(self, filename):
+        '''
+        Load config file, dumping the amplitude and phase vs freq
+        :param filename:
+        :return:
+        '''
+        # open file
+        Dict               = pkl.load(open(filename, 'rb'))
+        # Dump info
+        for key in Dict.keys():
+            if key=='signal':
+                self._signalInterpolates            = {}
+                self._signalInterpolates['amp']     = interp1d(
+                    Dict[key]['f'],
+                    Dict[key]['amp'],
+                    bounds_error        = False,
+                    fill_value          = 0,
+                )
+                self._signalInterpolates['phase_x'] = interp1d(
+                    Dict[key]['f'],
+                    Dict[key]['phase_x'],
+                    bounds_error        = False,
+                    fill_value          = (Dict[key]['phase_x'][0], Dict[key]['phase_x'][-1]),
+                )
+                self._signalInterpolates['phase_y'] = interp1d(
+                    Dict[key]['f'],
+                    Dict[key]['phase_y'],
+                    bounds_error        = False,
+                    fill_value          = (Dict[key]['phase_y'][0], Dict[key]['phase_y'][-1]),
+                )
+            else:
+                for InputDict in Dict[key]:
+                    InterpolatesDict                    = {}
+                    InterpolatesDict['Rdc']             = InputDict['Rdc'] # in Om
+                    InterpolatesDict['Rslope']          = InputDict['Rslope'] # in 1/MHz
+                    InterpolatesDict['Temp']            = InputDict['Temp'] # in K
+                    InterpolatesDict['amp']             = interp1d(
+                        InputDict['f'],
+                        InputDict['amp'],
+                        bounds_error        = False,
+                        fill_value          = 0,
+                    )
+                    InterpolatesDict['phase_x']         = interp1d(
+                        InputDict['f'],
+                        InputDict['phase_x'],
+                        bounds_error        = False,
+                        fill_value          = (InputDict['phase_x'][0], InputDict['phase_x'][-1])
+                    )
+                    InterpolatesDict['phase_y']         = interp1d(
+                        InputDict['f'],
+                        InputDict['phase_y'],
+                        bounds_error        = False,
+                        fill_value          = (InputDict['phase_y'][0], InputDict['phase_y'][-1])
+                    )
+                    self._noiseInterpolates.append(deepcopy(InterpolatesDict))
+        return
 
+    def _generateNoiseFrequencySpec(self, freq, **kwargs):
+        '''
+        Generate Johnson thermal noise
+        :param freq:
+        :param kwargs:
+        :return:
+        '''
+        # load info
+        Rdc                 = kwargs.get('Rdc', 1) # in Om
+        Rslope              = kwargs.get('Rslope', 1.) # in 1/MHz
+        Temp                = kwargs.get('Temp', 300) # in K
+        # Generate random phase
+        phase               = np.random.uniform(0, 2.*np.pi, size=freq.shape[0])
+        # Get the power spec
+        spec                = np.multiply(
+            np.sqrt(4.*self._kB*Temp*(1+Rslope*freq)*Rdc),
+            np.exp(1j*phase)
+        )
+        return spec
 
+    def _transfer_based_on_voltages(self, freq, voltages, respond_dict):
+        '''
+        fft->response->ifft
+        :param voltages:
+        :return:
+        '''
+        # first fft voltage to spec
+        spec                = fftpack.fft(voltages)
+        # multiply the spec with response function
+        spec                = np.multiply(
+            spec,
+            respond_dict['amp'](freq)*(respond_dict['phase_x'](freq)+1j*respond_dict['phase_y'](freq))
+        )
+        # inverse fft
+        voltages_RLC        = fftpack.ifft(spec)
+        return voltages_RLC
+
+    def _transfer_based_on_spec(self, freq, spec, respond_dict):
+        '''
+        response->ifft
+        :param spec:
+        :return:
+        '''
+        # multiply the spec with response function
+        spec = np.multiply(
+            spec,
+            respond_dict['amp'](freq) * (respond_dict['phase_x'](freq) + 1j * respond_dict['phase_y'](freq))
+        )
+        # inverse fft
+        voltages_RLC = fftpack.ifft(spec)
+        return voltages_RLC
 
     #######################################
     ## Public functions
     #######################################
-    def getSamplingTimes(self):
-        # placeholder
-        return np.zeros(10)
-
     def calculateVoltages(self, **kwargs):
-        # placeholder
-        return np.zeros(10)
+        '''
+        1) wf fft * response function
+        2) ifft to get original wf
+        :param kwargs:
+        :return:
+        '''
+        # load info
+        if 'voltages' not in kwargs.keys():
+            raise ValueError("Must input voltages to CircuitCalculator")
+        voltages                    = np.asarray(kwargs['voltages'])
+        num_samples                 = kwargs.get('num_samples', 1000)
+        sample_step                 = kwargs.get('sample_step', 10) # in ns
+        # get frequencies
+        freq                        = np.abs(fftpack.fftfreq(num_samples, sample_step*1e-9)*1e-6) # in MHz
+        # signal transfer
+        voltages_RLC                = self._transfer_based_on_voltages(freq, voltages, self._signalInterpolates)
+        # noise transfer
+        noises_RLC                  = np.zeros(voltages.shape)
+        for InterpolatorDict in self._noiseInterpolates:
+            noise_freq_spec         = self._generateNoiseFrequencySpec(
+                freq,
+                Rdc                 = InterpolatorDict['Rdc'],
+                Rslope              = InterpolatorDict['Rslope'],
+                Temp                = InterpolatorDict['Temp'],
+            )
+            # print("noise_freq_spec = "+str(noise_freq_spec))
+            # for f, spec in zip(freq, noise_freq_spec):
+            #     print("f: "+str(f)+"; noise="+str(spec))
+            this_noise_RLC          = self._transfer_based_on_spec(freq, noise_freq_spec, InterpolatorDict)
+            # print("this_noise_RLC = "+str(this_noise_RLC))
+            noises_RLC              = noises_RLC + this_noise_RLC
+        return (voltages_RLC, noises_RLC)
 
 
 
