@@ -95,6 +95,31 @@ class CircuitCalculator:
                     self._noiseInterpolates.append(deepcopy(InterpolatesDict))
         return
 
+    def _conjugate(self, freq, spec):
+        '''
+        conjugate the power spec
+        if positive and negative freq part has different value, stick on positive
+        :param freq:
+        :param values:
+        :return:
+        '''
+        # generate a tracing index table
+        tracking_inds                   = np.linspace(0, freq.shape[0] - 1, freq.shape[0]).astype(np.int)
+        # sorting
+        sort_inds                       = np.argsort(freq)
+        freq_sorted                     = freq[sort_inds]
+        tracking_inds                   = tracking_inds[sort_inds]
+        spec_sorted                     = spec[sort_inds]
+        # conjugate
+        N                               = int(freq.shape[0])
+        if N%2==0:
+            # even case
+            spec_sorted[1:int(N/2)]          = np.conjugate(spec_sorted[::-1][:int(N/2-1)])
+        else:
+            # odd case
+            spec_sorted[:int((N-1)/2)]       = np.conjugate(spec_sorted[::-1][:int((N-1)/2)])
+        return spec_sorted[tracking_inds]
+
     def _generateNoiseFrequencySpec(self, freq, **kwargs):
         '''
         Generate Johnson thermal noise
@@ -111,11 +136,12 @@ class CircuitCalculator:
         sample_step         = kwargs.get('sample_step', 10) # in ns
         sample_rate         = 1./sample_step*1e9 # in Hz
         # Generate random phase
-        phase               = np.random.uniform(0, 2.*np.pi, size=freq.shape[0])
+        phase               = np.exp(1j*np.random.uniform(0, 2.*np.pi, size=freq.shape[0]))
+        phase               = self._conjugate(freq, phase)
         # Get the power spec
         spec                = np.multiply(
-            np.sqrt(4.*self._kB*Temp*(1+Rslope*freq)*Rdc*sample_rate*num_samples),
-            np.exp(1j*phase)
+            np.sqrt(4.*self._kB*Temp*(1+Rslope*np.abs(freq))*Rdc*sample_rate*num_samples),
+            phase
         )
         return spec
 
@@ -127,10 +153,17 @@ class CircuitCalculator:
         '''
         # first fft voltage to spec
         spec                = fftpack.fft(voltages)
+        # get the response
+        amp                 = respond_dict['amp'](np.abs(freq))
+        phase_x             = respond_dict['phase_x'](np.abs(freq))
+        phase_y             = respond_dict['phase_y'](np.abs(freq))
+        # conjugate phase_y
+        phase               = phase_x + 1j*phase_y
+        phase               = self._conjugate(freq, phase)
         # multiply the spec with response function
         spec                = np.multiply(
             spec,
-            respond_dict['amp'](freq)*(respond_dict['phase_x'](freq)+1j*respond_dict['phase_y'](freq))
+            amp*phase
         )
         # inverse fft
         voltages_RLC        = fftpack.ifft(spec)
@@ -142,10 +175,17 @@ class CircuitCalculator:
         :param spec:
         :return:
         '''
+        # get the response
+        amp                 = respond_dict['amp'](np.abs(freq))
+        phase_x             = respond_dict['phase_x'](np.abs(freq))
+        phase_y             = respond_dict['phase_y'](np.abs(freq))
+        # conjugate phase_y
+        phase               = phase_x + 1j*phase_y
+        phase               = self._conjugate(freq, phase)
         # multiply the spec with response function
         spec = np.multiply(
             spec,
-            respond_dict['amp'](freq) * (respond_dict['phase_x'](freq) + 1j * respond_dict['phase_y'](freq))
+            amp*phase
         )
         # inverse fft
         voltages_RLC = fftpack.ifft(spec)
@@ -168,7 +208,7 @@ class CircuitCalculator:
         num_samples                 = kwargs.get('num_samples', 1000)
         sample_step                 = kwargs.get('sample_step', 10) # in ns
         # get frequencies
-        freq                        = np.abs(fftpack.fftfreq(num_samples, sample_step*1e-9)*1e-6) # in MHz
+        freq                        = fftpack.fftfreq(num_samples, sample_step*1e-9)*1e-6 # in MHz
         # signal transfer
         voltages_RLC                = self._transfer_based_on_voltages(freq, voltages, self._signalInterpolates)
         # noise transfer

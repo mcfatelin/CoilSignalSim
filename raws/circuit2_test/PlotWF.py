@@ -20,7 +20,7 @@ Mode                        = int(sys.argv[5]) # Mode=0 for signal, Mode=1 for n
 
 
 # hard coded
-CoilID                      = 4
+CoilID                      = 5
 
 ############
 # open file
