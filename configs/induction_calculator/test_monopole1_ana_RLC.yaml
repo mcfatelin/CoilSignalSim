@@ -19,12 +19,12 @@ array_config:
 field_config:
   num_coil_turns: 100
   using_analytic: True
-  world_box_size: 1000
-  distance_before_zero: 400
-  num_samples: 1000
+  world_box_size: 60000
+  distance_before_zero: 30000
+  num_samples: 100000
 noise_config:
   R:  0.0
   T:  300
 circuit_config:
-  filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/raws/circuit_test/circuit_test.pkl'
+  filename: '/Users/qinglin/WorkSpace/MonopoleProject/CoilSignalSim/raws/circuit2_test/circuit2_test.pkl'
 
