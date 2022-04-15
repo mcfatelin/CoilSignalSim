@@ -179,6 +179,8 @@ class CircuitCalculator:
                 Rdc                 = InterpolatorDict['Rdc'],
                 Rslope              = InterpolatorDict['Rslope'],
                 Temp                = InterpolatorDict['Temp'],
+                num_samples         = num_samples,
+                sample_step         = sample_step,
             )
             # print("noise_freq_spec = "+str(noise_freq_spec))
             # for f, spec in zip(freq, noise_freq_spec):
