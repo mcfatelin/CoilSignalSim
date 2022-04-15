@@ -98,6 +98,7 @@ class CircuitCalculator:
     def _generateNoiseFrequencySpec(self, freq, **kwargs):
         '''
         Generate Johnson thermal noise
+        Note: we need to scale the spectrum because of fft convention
         :param freq:
         :param kwargs:
         :return:
@@ -106,11 +107,14 @@ class CircuitCalculator:
         Rdc                 = kwargs.get('Rdc', 1) # in Om
         Rslope              = kwargs.get('Rslope', 1.) # in 1/MHz
         Temp                = kwargs.get('Temp', 300) # in K
+        num_samples         = kwargs.get('num_samples', 1000)
+        sample_step         = kwargs.get('sample_step', 10) # in ns
+        sample_rate         = 1./sample_step*1e9 # in Hz
         # Generate random phase
         phase               = np.random.uniform(0, 2.*np.pi, size=freq.shape[0])
         # Get the power spec
         spec                = np.multiply(
-            np.sqrt(4.*self._kB*Temp*(1+Rslope*freq)*Rdc),
+            np.sqrt(4.*self._kB*Temp*(1+Rslope*freq)*Rdc*sample_rate*num_samples),
             np.exp(1j*phase)
         )
         return spec
