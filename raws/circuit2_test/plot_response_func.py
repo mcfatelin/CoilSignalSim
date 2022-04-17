@@ -3,23 +3,33 @@
 ################################################
 import pickle as pkl
 import numpy as np
-
+import sys
 
 ########################
 ## hardcoded input
 ########################
+Filename                    = sys.argv[1]
+OutputFilename              = sys.argv[2]
+Mode                        = int(sys.argv[3])
 
-Filename                    = 'circuit2_test.pkl'
+
+
 
 Dict                        = pkl.load(open(Filename, 'rb'))
 
 
-
-freq                        = np.asarray(Dict['signal']['f'])
-amp                         = np.asarray(Dict['signal']['amp'])
-phase_x                     = np.asarray(Dict['signal']['phase_x'])
-phase_y                     = np.asarray(Dict['signal']['phase_y'])
-theta                       = np.arctan2(phase_y, phase_x)
+if Mode==0:
+    freq                        = np.asarray(Dict['signal']['f'])
+    amp                         = np.asarray(Dict['signal']['amp'])
+    phase_x                     = np.asarray(Dict['signal']['phase_x'])
+    phase_y                     = np.asarray(Dict['signal']['phase_y'])
+    theta                       = np.arctan2(phase_y, phase_x)
+else:
+    freq = np.asarray(Dict['noises'][-1]['f'])
+    amp = np.asarray(Dict['noises'][-1]['amp'])
+    phase_x = np.asarray(Dict['noises'][-1]['phase_x'])
+    phase_y = np.asarray(Dict['noises'][-1]['phase_y'])
+    theta = np.arctan2(phase_y, phase_x)
 
 
 
@@ -141,8 +151,11 @@ ax4.plot(
 # f_min           = freq[0]
 # f_max           = freq[-1]
 
-f_min           = 1e-4
-f_max           = 1e-2
+f_min           = 1e-6
+f_max           = 1.
+
+# f_min           = 1e-4
+# f_max           = 1e-2
 
 # setting
 ax1.set_xlim([f_min, f_max])
@@ -175,8 +188,8 @@ ax4.tick_params(axis='y', labelsize=20, width=2, length=5)
 ax4.set_xlabel('Freq [MHz]', fontsize=20)
 ax4.set_ylabel('sin(theta)', fontsize=20)
 
-# plt.savefig("Response.png")
-plt.savefig("Response_zoom.png")
+plt.savefig(OutputFilename)
+# plt.savefig("Response_zoom.png")
 plt.show()
 
 

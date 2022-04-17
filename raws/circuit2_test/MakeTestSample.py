@@ -63,14 +63,35 @@ def trans3(f):
 OutDict                     = {}
 
 freq                        = np.logspace(
-    np.log10(1),
-    np.log10(4e6),
-    100001,
+    np.log10(5),
+    np.log10(5e4),
+    100000,
 )
+# freq                        = np.linspace(
+#     5,
+#     5e4,
+#     10000,
+# )
+
 
 
 response1                   = trans1(freq)
 response2                   = trans3(freq)
+
+
+# hardcode add zero point
+freq                        = np.append(
+    np.zeros(1),
+    freq
+)
+response1                   = np.append(
+    np.asarray([0.00631313+1j*0.]),
+    response1
+)
+response2                   = np.append(
+    np.asarray([0.00631313+1j*0.]),
+    response2
+)
 
 ###########
 # Signal
@@ -98,7 +119,7 @@ OutDict['noises'][0]['phase_x']     = response1.real / np.abs(response1)
 OutDict['noises'][0]['phase_y']     = response1.imag / np.abs(response1)
 
 OutDict['noises'].append({})
-OutDict['noises'][1]['Rdc']         = Rout # Om
+OutDict['noises'][1]['Rdc']         = Rload # Om
 OutDict['noises'][1]['Rslope']      = r_A3*1e6 # /MHz
 OutDict['noises'][1]['Temp']        = T3
 OutDict['noises'][1]['f']           = freq*1e-6
@@ -117,5 +138,6 @@ import pickle as pkl
 
 pkl.dump(
     OutDict,
-    open("circuit2_test.pkl", 'wb')
+    # open("circuit3_test.pkl", 'wb')
+    open("circuit4_test.pkl", 'wb')
 )

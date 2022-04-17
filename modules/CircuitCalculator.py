@@ -54,7 +54,7 @@ class CircuitCalculator:
                     Dict[key]['f'],
                     Dict[key]['amp'],
                     bounds_error        = False,
-                    fill_value          = 0,
+                    fill_value          = (Dict[key]['amp'][0], Dict[key]['amp'][-1]),
                 )
                 self._signalInterpolates['phase_x'] = interp1d(
                     Dict[key]['f'],
@@ -78,7 +78,7 @@ class CircuitCalculator:
                         InputDict['f'],
                         InputDict['amp'],
                         bounds_error        = False,
-                        fill_value          = 0,
+                        fill_value          = (InputDict['amp'][0], InputDict['amp'][-1]),
                     )
                     InterpolatesDict['phase_x']         = interp1d(
                         InputDict['f'],
