@@ -15,6 +15,7 @@ from modules.ArrayManager import ArrayManager
 from modules.ParticleGenerator import ParticleGenerator
 from modules.ThermalNoise import ThermalNoiseGenerator
 from modules.CircuitCalculator import CircuitCalculator
+from modules.Magnetometercalculator import Magnetometercalculator
 
 class SignalCalculator:
     def __init__(self, **kwargs):
@@ -45,6 +46,7 @@ class SignalCalculator:
         self._loadThermalNoiseGenerator(**config['noise_config'])
         # load circuit calculator
         self._loadCircuitCalculator(**config['circuit_config'])
+        self._loadMagnetometerCalculator(**config['Magnetometer_config'])
         # check if particle generator has the same part_type as in field config
         if self._particleGenerator.getPartType()!=self._inductionCalculator.getPartType():
             raise ValueError(
@@ -140,6 +142,14 @@ class SignalCalculator:
         self._circuitCalculator                 = CircuitCalculator(**kwargs)
         return
 
+    def _loadMagnetometerCalculator(self, **kwargs):
+        '''
+        Load particle generator
+        :param kwargs:
+        :return:
+        '''
+        self._magnetometerCalculator                 = MagnetometerCalculator(**kwargs)
+        return
     ###############################################
     ## Private functions
     ###############################################
@@ -168,7 +178,8 @@ class SignalCalculator:
         if self._calculateRLC:
             self._outputDict['voltages_RLC']            = []
             self._outputDict['noises_RLC']              = []
-        # self._outputDict['voltage_magnetometer']    = [] # to be implemented
+            self._outputDict['voltage_magnetometer']    = []
+            self._outputDict['noises_magnetometer']     = []
         return
 
     def _generateParticle(self):
@@ -366,6 +377,25 @@ class SignalCalculator:
             self._voltages_RLC.append(Obj[0])
             self._noises_RLC.append(Obj[1])
         return
+    def _calculateMagnetometerShapedVoltages(self):
+        '''
+        Calculate the Magnetometer shaped voltages
+        :return:
+        '''
+        self._voltages_magnetometer              = []
+        self._noises_magnetometer                = []
+        for voltages, sample_times in zip(self._voltages_RLC, self._sample_times):
+            # calculate real voltage calculation times
+            NumberOfSamples             = voltages.shape[0]
+            SampleStep                  = sample_times[1] - sample_times[0]
+            Obj                         = self._MagnetormeterCalculator.calculateVoltages(
+                voltages            = voltages, # in V
+                num_samples         = NumberOfSamples,
+                sample_step         = SampleStep, # in ns
+            )
+            self._voltages_magnetometer.append(Obj[0])
+            self._noises_magnetometer.append(Obj[1])
+        return
 
     def _save(self):
         self._outputDict['part_centers'].append(self._part_center)
@@ -383,6 +413,8 @@ class SignalCalculator:
         if self._calculateRLC:
             self._outputDict['voltages_RLC'].append(deepcopy(self._voltages_RLC))
             self._outputDict['noises_RLC'].append(deepcopy(self._noises_RLC))
+            self._outputDict['voltages_magnetometer'].append(deepcopy(self._voltages_magnetometer))
+            self._outputDict['noises_magnetometer'].append(deepcopy(self._noises_magnetometer))
         return
 
 
@@ -434,6 +466,7 @@ class SignalCalculator:
             # calculate signal after RLC circuit shaping
             if self._calculateRLC:
                 self._calculateCircuitShapedVoltages()
+                self._calculaterMagnetometerShapedVoltages()
             # save
             self._save()
         # output

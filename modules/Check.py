@@ -12,20 +12,21 @@ consider_freq   = 40000   #40000 #in Hz
 Polarization    = 0.8     #from what Doc.Jiang said about P
 sampling_step   = 1e-6    #in s
 sampling_number = 1000    #from Doc.Lin 's code
+theta0          = np.pi/3 
 
-def _Response_funtion(freq,phase):
+def _Response_funtion(freq):
         ### calculate the complex response value 
         gama   = 1/(T2*2*np.pi)
         output = \
-            Polarization/(2*np.pi)*np.exp(1j*phase)*(gama - 1j*(freq-consider_freq))/(gama**2 + (freq - consider_freq)**2)+\
-            Polarization/(2*np.pi)*np.exp(-1j*phase)*(gama - 1j*(freq+consider_freq))/(gama**2 + (freq + consider_freq)**2)
+            Polarization/(2*np.pi)*np.exp(1j*theta0)*(gama - 1j*(freq-consider_freq))/(gama**2 + (freq - consider_freq)**2)+\
+            Polarization/(2*np.pi)*np.exp(-1j*theta0)*(gama - 1j*(freq+consider_freq))/(gama**2 + (freq + consider_freq)**2)
         return output
 def _transfer_based_on_voltage(freq,voltage,phase):
         ## first fft voltage
         spec     = fftpack.fft(voltage)
         remain   = np.copy(spec)
         ## calculate response value
-        response = _Response_funtion(freq,phase)
+        response = _Response_funtion(freq)
         ## multiply the response value to spec
         spec     = np.multiply(
             spec,
@@ -62,7 +63,7 @@ sample_t      = np.zeros(sampling_number,dtype = float)
 for i in range(sampling_number):
     input_voltage[i]    = voltage[int(i*step)]
     phase[i]            = phase1[int(i*step)]
-    sample_t[i]            = t[int(step*i)]
+    sample_t[i]         = t[int(step*i)]
 print(sample_t.shape[0])
 
 
@@ -77,7 +78,7 @@ freq             = fftpack.fftfreq(
 ######first fft voltage
 spec             = fftpack.fft(input_voltage)
 ######get the response
-response         = _Response_funtion(freq,phase)
+response         = _Response_funtion(freq)
 ######multiply response with spectrum
 output_spec      = np.multiply(spec,
                                response)
