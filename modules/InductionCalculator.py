@@ -89,6 +89,7 @@ class SingleInductionCalculator:
             self._particleStep              = Dict['config']['particle_step']
             self._partType                  = Dict['part_type']
             self._partSpeed                 = Dict['part_speed']
+            print(self._partSpeed)
             self._partElectricCharge        = Dict['part_electric_charge']
             self._partMagneticCharge        = Dict['part_magnetic_charge']
             self._partMagneticMoment        = np.asarray(Dict['part_magnetic_moment'])

@@ -120,6 +120,7 @@ class FieldGenerator:
         self._outputDict                        = {}
         # record the config
         self._outputDict['config']              = self._config
+        print(self._config)
         # create all the branches
         self._outputDict['part_speed']              = None
         self._outputDict['part_type']               = None
