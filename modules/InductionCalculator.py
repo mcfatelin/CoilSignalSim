@@ -75,8 +75,8 @@ class SingleInductionCalculator:
         :return:
         '''
         # load info
-        self._numCoilTurns              = kwargs.get('num_coil_turns', 100)
-        self._usingAnalytic             = kwargs.get('using_analytic', False)
+        self._numCoilTurns              = kwargs.get('num_coil_turns', 4000)
+        self._usingAnalytic             = kwargs.get('using_analytic', True)
         if not self._usingAnalytic:
             ##############################
             # Load simulated field
@@ -114,9 +114,9 @@ class SingleInductionCalculator:
             # NOTE currently analytic method is only available for monopole
             ##############################
             # get information
-            self._worldBoxSize              = kwargs.get('world_box_size', 1000) # unit in mm
+            self._worldBoxSize              = kwargs.get('world_box_size', 1e5) # unit in mm
             self._distanceBeforeZero        = kwargs.get('distance_before_zero', 500) # unit in mm, distance before reaching the closest point with respect to the coil center
-            self._numSamples                = kwargs.get('num_samples', 1000)
+            self._numSamples                = kwargs.get('num_samples', 2000)
             self._partType                  = 0 # hard coded, currently analytic method is only applicable to monopole calculation
             self._particleStep              = self._worldBoxSize / float(self._numSamples - 1)
         return

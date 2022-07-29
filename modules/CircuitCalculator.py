@@ -72,7 +72,11 @@ class CircuitCalculator:
                 for InputDict in Dict[key]:
                     InterpolatesDict                    = {}
                     InterpolatesDict['Rdc']             = InputDict['Rdc'] # in Om
-                    InterpolatesDict['Rslope']          = InputDict['Rslope'] # in 1/MHz
+                    InterpolatesDict['Rslope']          = interp1d(
+                        InputDict['f'],
+                        InputDict['Rslope'],
+                        bounds_error        = False,
+                        fill_value          = (InputDict['Rslope'][0], InputDict['Rslope'][-1]))
                     InterpolatesDict['Temp']            = InputDict['Temp'] # in K
                     InterpolatesDict['amp']             = interp1d(
                         InputDict['f'],
@@ -94,7 +98,6 @@ class CircuitCalculator:
                     )
                     self._noiseInterpolates.append(deepcopy(InterpolatesDict))
         return
-
     def _conjugate(self, freq, spec):
         '''
         conjugate the power spec
@@ -104,23 +107,12 @@ class CircuitCalculator:
         :return:
         '''
         # generate a tracing index table
-        tracking_inds                   = np.linspace(0, freq.shape[0] - 1, freq.shape[0]).astype(np.int)
-        # sorting
-        sort_inds                       = np.argsort(freq)
-        freq_sorted                     = freq[sort_inds]
-        tracking_inds                   = tracking_inds[sort_inds]
-        spec_sorted                     = spec[sort_inds]
-        # conjugate
-        N                               = int(freq.shape[0])
-        if N%2==0:
-            # even case
-            spec_sorted[1:int(N/2)]          = np.conjugate(spec_sorted[::-1][:int(N/2-1)])
-        else:
-            # odd case
-            spec_sorted[:int((N-1)/2)]       = np.conjugate(spec_sorted[::-1][:int((N-1)/2)])
-        return spec_sorted[tracking_inds]
+        for i in range(len(freq)):
+            if freq[i]<0:
+                spec[i] = np.conjugate(spec[i])
+        return spec
 
-    def _generateNoiseFrequencySpec(self, freq, **kwargs):
+    def _generateNoiseFrequencySpec(self, freq, Rslope_dict,**kwargs):
         '''
         Generate Johnson thermal noise
         Note: we need to scale the spectrum because of fft convention
@@ -130,7 +122,7 @@ class CircuitCalculator:
         '''
         # load info
         Rdc                 = kwargs.get('Rdc', 1) # in Om
-        Rslope              = kwargs.get('Rslope', 1.) # in 1/MHz
+        Rslope              = Rslope_dict(np.abs(freq))
         Temp                = kwargs.get('Temp', 300) # in K
         num_samples         = kwargs.get('num_samples', 1000)
         sample_step         = kwargs.get('sample_step', 10) # in ns
@@ -140,11 +132,10 @@ class CircuitCalculator:
         phase               = self._conjugate(freq, phase)
         # Get the power spec
         spec                = np.multiply(
-            np.sqrt(4.*self._kB*Temp*(1+Rslope*np.abs(freq))*Rdc*sample_rate*num_samples),
+            np.sqrt(4.*self._kB*Temp*Rslope*Rdc*sample_rate*num_samples),
             phase
         )
         return spec
-
     def _transfer_based_on_voltages(self, freq, voltages, respond_dict):
         '''
         fft->response->ifft
@@ -206,7 +197,7 @@ class CircuitCalculator:
             raise ValueError("Must input voltages to CircuitCalculator")
         voltages                    = np.asarray(kwargs['voltages'])
         num_samples                 = kwargs.get('num_samples', 1000)
-        sample_step                 = kwargs.get('sample_step', 10) # in ns
+        sample_step                 = kwargs.get('sample_step', 100) # in ns
         # get frequencies
         freq                        = fftpack.fftfreq(num_samples, sample_step*1e-9)*1e-6 # in MHz
         # signal transfer
@@ -217,7 +208,7 @@ class CircuitCalculator:
             noise_freq_spec         = self._generateNoiseFrequencySpec(
                 freq,
                 Rdc                 = InterpolatorDict['Rdc'],
-                Rslope              = InterpolatorDict['Rslope'],
+                Rslope_dict         = InterpolatorDict['Rslope'],
                 Temp                = InterpolatorDict['Temp'],
                 num_samples         = num_samples,
                 sample_step         = sample_step,

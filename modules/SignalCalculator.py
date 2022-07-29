@@ -15,6 +15,9 @@ from modules.ArrayManager import ArrayManager
 from modules.ParticleGenerator import ParticleGenerator
 from modules.ThermalNoise import ThermalNoiseGenerator
 from modules.CircuitCalculator import CircuitCalculator
+from modules.MagnetometerCalculator import MagnetometerCalculator
+from modules.OptimalFilter import OptimalFilter
+from modules.SamplingProcess import SamplingProcess
 
 class SignalCalculator:
     def __init__(self, **kwargs):
@@ -32,7 +35,7 @@ class SignalCalculator:
         self._worldBoxSize          = config.get('world_box_size', 1000)
         self._particles             = config['particles']  # containing all the configurations, such as direction (rvs range), start point, speed (or energy), charge (or magnetic charge, or magnetic moment) and etc.
         self._verbose               = config.get('verbose', False)
-        self._calculateRLC          = config.get('calculateRLC', False)
+        self._calculateRLC          = config.get('calculateRLC', True)
         # initiate some physics constants
         self._initiateConstants()
         # load the field tensors
@@ -45,6 +48,8 @@ class SignalCalculator:
         self._loadThermalNoiseGenerator(**config['noise_config'])
         # load circuit calculator
         self._loadCircuitCalculator(**config['circuit_config'])
+        self._loadMagnetometerCalculator(**config['magnetometer_config'])
+        self._loadOptimalFilter(**config['optimalfilter_config'])
         # check if particle generator has the same part_type as in field config
         if self._particleGenerator.getPartType()!=self._inductionCalculator.getPartType():
             raise ValueError(
@@ -93,7 +98,8 @@ class SignalCalculator:
         self._reducedPlanckConstant = 1.0546e-34 # J s
         return
 
-
+    def _loadOptimalFilter(self,**kwargs):
+        self._OptimalFilter = OptimalFilter(**kwargs)
     def _loadParticleGenerator(self, **kwargs):
         '''
         Load particle generator
@@ -140,6 +146,15 @@ class SignalCalculator:
         self._circuitCalculator                 = CircuitCalculator(**kwargs)
         return
 
+    def _loadMagnetometerCalculator(self, **kwargs):
+        '''
+        Load particle generator
+        :param kwargs:
+        :return:
+        '''
+        self._magnetometerCalculator                 = MagnetometerCalculator(**kwargs)
+        return
+
     ###############################################
     ## Private functions
     ###############################################
@@ -165,10 +180,15 @@ class SignalCalculator:
         self._outputDict['voltages_wo_noise']       = [] # voltages without thermal noise
         self._outputDict['voltages']                = []
         self._outputDict['sample_times']            = [] # sample times, 0 is the point when particle reaches the closest point with respect to the center of coil
+        self._outputDict['sampling_time']           = []
+        self._outputDict['sampling_voltages']       = []
         if self._calculateRLC:
             self._outputDict['voltages_RLC']            = []
             self._outputDict['noises_RLC']              = []
-        # self._outputDict['voltage_magnetometer']    = [] # to be implemented
+            self._outputDict['voltages_magnetometer']    = []
+            self._outputDict['noises_magnetometer']     = []
+            self._outputDict['voltages_optimalfilter']  = []
+            self._outputDict['noises_optimalfilter']    = []
         return
 
     def _generateParticle(self):
@@ -346,7 +366,6 @@ class SignalCalculator:
         inds2                   = np.where(self._hit_times<0)[0]
         self._hit_times[inds2]  = avg_hit_time
         return
-
     def _calculateCircuitShapedVoltages(self):
         '''
         Calculate the RLC shaped voltages
@@ -366,7 +385,55 @@ class SignalCalculator:
             self._voltages_RLC.append(Obj[0])
             self._noises_RLC.append(Obj[1])
         return
-
+    def _calculateMagnetometerShapedVoltages(self):
+        '''
+        Calculate the Magnetometer shaped voltages
+        :return:
+        '''
+        self._voltages_magnetometer              = []
+        self._noises_magnetometer                = []
+        for noises, voltages, sample_times in zip(self._noises_RLC,self._voltages_RLC, self._sample_times):
+            # calculate real voltage calculation times
+            NumberOfSamples             = voltages.shape[0]
+            SampleStep                  = sample_times[1] - sample_times[0]
+            Obj                         = self._magnetometerCalculator.calculateVoltages(
+                voltages_RLC            = voltages, # in V
+                noises_RLC               = noises,
+                num_samples         = NumberOfSamples,
+                sample_step         = SampleStep, # in ns
+            )
+            self._voltages_magnetometer.append(Obj[0])
+            self._noises_magnetometer.append(Obj[1])
+        return
+    def _Sampling(self):
+        self._sampling_voltages = []
+        self._sampling_time     = []
+        self._sampling_noises   = []
+        for noises,voltages, sample_times in zip(self._noises_magnetometer,self._voltages_magnetometer, self._sample_times):
+            # calculate real voltage calculation times
+            module_signal              = SamplingProcess(sample_times,voltages)
+            module_noise               = SamplingProcess(sample_times,noises)
+            temp_sampling_time,temp_sampling_voltages                 = module_signal.sampling()
+            temp_sampling_time,temp_sampling_noises                   = module_noise.sampling()
+            self._sampling_time.append(temp_sampling_time)
+            self._sampling_voltages.append(temp_sampling_voltages)
+            self._sampling_noises.append(temp_sampling_noises)
+        return
+    def _calculateOptimalFilterShapedVoltages(self):
+        self._voltages_op              = []
+        self._noises_op                = []
+        for noises, voltages, sample_times in zip(self._sampling_noises,self._sampling_voltages, self._sampling_time):
+            # calculate real voltage calculation times
+            NumberOfSamples             = voltages.shape[0]
+            SampleStep                  = sample_times[1] - sample_times[0]
+            Obj                         = self._OptimalFilter.calculateVoltages(
+                voltages_magnetometer            = voltages, # in V
+                noises_magnetometer               = noises,
+                num_samples         = NumberOfSamples,
+                sample_step         = SampleStep, # in ns
+            )
+            self._voltages_op.append(Obj[0])
+            self._noises_op.append(Obj[1])
     def _save(self):
         self._outputDict['part_centers'].append(self._part_center)
         self._outputDict['part_directions'].append(self._part_direction)
@@ -380,9 +447,15 @@ class SignalCalculator:
         self._outputDict['voltages'].append(deepcopy(self._voltages))
         self._outputDict['sample_times'].append(deepcopy(self._sample_times))
         self._outputDict['voltages_wo_noise'].append(deepcopy(self._voltages_wo_noise))
+        self._outputDict['sampling_time'].append(deepcopy(self._sampling_time))
+        self._outputDict['sampling_voltages'].append(deepcopy(self._sampling_voltages))
         if self._calculateRLC:
             self._outputDict['voltages_RLC'].append(deepcopy(self._voltages_RLC))
             self._outputDict['noises_RLC'].append(deepcopy(self._noises_RLC))
+            self._outputDict['voltages_magnetometer'].append(deepcopy(self._voltages_magnetometer))
+            self._outputDict['noises_magnetometer'].append(deepcopy(self._noises_magnetometer))
+            self._outputDict['voltages_optimalfilter'].append(deepcopy(self._voltages_op))
+            self._outputDict['noises_optimalfilter'].append(deepcopy(self._noises_op))
         return
 
 
@@ -434,6 +507,9 @@ class SignalCalculator:
             # calculate signal after RLC circuit shaping
             if self._calculateRLC:
                 self._calculateCircuitShapedVoltages()
+                self._calculateMagnetometerShapedVoltages()
+                self._Sampling()
+                self._calculateOptimalFilterShapedVoltages()
             # save
             self._save()
         # output
