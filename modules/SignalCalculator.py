@@ -377,6 +377,10 @@ class SignalCalculator:
             # calculate real voltage calculation times
             NumberOfSamples             = voltages.shape[0]
             SampleStep                  = sample_times[1] - sample_times[0]
+            if SampleStep == 0:
+                ## if particle not hit the coil sample_times will all be zero 
+                ## this bug will lead to none for circuit shaped voltages
+                SampleStep = 1e-7
             Obj                         = self._circuitCalculator.calculateVoltages(
                 voltages            = voltages, # in V
                 num_samples         = NumberOfSamples,
@@ -396,6 +400,10 @@ class SignalCalculator:
             # calculate real voltage calculation times
             NumberOfSamples             = voltages.shape[0]
             SampleStep                  = sample_times[1] - sample_times[0]
+            if SampleStep == 0:
+                ## if particle not hit the coil sample_times will all be zero 
+                ## this bug will lead to none for circuit shaped voltages
+                SampleStep = 1e-7
             Obj                         = self._magnetometerCalculator.calculateVoltages(
                 voltages_RLC            = voltages, # in V
                 noises_RLC               = noises,
@@ -409,6 +417,7 @@ class SignalCalculator:
         self._sampling_voltages = []
         self._sampling_time     = []
         self._sampling_noises   = []
+        self._sample_rate       = 1e7
         for noises,voltages, sample_times in zip(self._noises_magnetometer,self._voltages_magnetometer, self._sample_times):
             # calculate real voltage calculation times
             module_signal              = SamplingProcess(sample_times,voltages)

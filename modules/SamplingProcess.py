@@ -23,9 +23,6 @@ class SamplingProcess():
     def sampling(self,**kwargs):
         sample_rate  = kwargs.get('sample_rate',10000000)  ## in Hz
         t_range = max(self.t) - min(self.t)
-        if len(self.t) == 0:
-            print(self.voltages)
-            print(self.t)
         #print(t_range)
         number_of_samples  = int(t_range*sample_rate*1e-9)
         #print(number_of_samples)
@@ -33,5 +30,6 @@ class SamplingProcess():
         #print(sampling_t)
         sampling_induction = self._interInduction(sampling_t)
         if len(sampling_induction) == 0:
+            #print(self.t,self.voltages)
             return (self.t,self.voltages)
         return (sampling_t,sampling_induction)
