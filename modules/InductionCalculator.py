@@ -76,7 +76,7 @@ class SingleInductionCalculator:
         '''
         # load info
         self._numCoilTurns              = kwargs.get('num_coil_turns', 4000)
-        self._usingAnalytic             = kwargs.get('using_analytic', True)
+        self._usingAnalytic             = kwargs.get('using_analytic', False)
         if not self._usingAnalytic:
             ##############################
             # Load simulated field
@@ -114,9 +114,9 @@ class SingleInductionCalculator:
             # NOTE currently analytic method is only available for monopole
             ##############################
             # get information
-            self._worldBoxSize              = kwargs.get('world_box_size', 1e5) # unit in mm
+            self._worldBoxSize              = kwargs.get('world_box_size', 1000) # unit in mm
             self._distanceBeforeZero        = kwargs.get('distance_before_zero', 500) # unit in mm, distance before reaching the closest point with respect to the coil center
-            self._numSamples                = kwargs.get('num_samples', 2000)
+            self._numSamples                = kwargs.get('num_samples', 1000)
             self._partType                  = 0 # hard coded, currently analytic method is only applicable to monopole calculation
             self._particleStep              = self._worldBoxSize / float(self._numSamples - 1)
         return
@@ -537,13 +537,13 @@ class SingleInductionCalculator:
         # Translate until coil_center is at 000
         #######################
         # # debug
-        # print("=================")
-        # print("Before translation:")
-        # print("===>>> Coil center = "+str(coil_center))
-        # print("===>>> Coil Direction = "+str(coil_direction))
-        # print("===>>> Part. start point = "+str(part_start_point))
-        # print("===>>> Part. direction = "+str(part_direction))
-        # print()
+        #print("=================")
+        #print("Before translation:")
+        #print("===>>> Coil center = "+str(coil_center))
+        #print("===>>> Coil Direction = "+str(coil_direction))
+        #print("===>>> Part. start point = "+str(part_start_point))
+        #print("===>>> Part. direction = "+str(part_direction))
+        #print()
         translation                 = -coil_center
         part_start_point            = self._translate(part_start_point, translation)
         coil_center                 = self._translate(coil_center, translation)
@@ -551,12 +551,12 @@ class SingleInductionCalculator:
         ## rotate until coil_direction is on YZ plane
         #######################
         # # debug
-        # print("Before coil direction rotation along Z+:")
-        # print("===>>> Coil center = "+str(coil_center))
-        # print("===>>> Coil Direction = "+str(coil_direction))
-        # print("===>>> Part. start point = "+str(part_start_point))
-        # print("===>>> Part. direction = "+str(part_direction))
-        # print()
+        #print("Before coil direction rotation along Z+:")
+        #print("===>>> Coil center = "+str(coil_center))
+        #print("===>>> Coil Direction = "+str(coil_direction))
+        #print("===>>> Part. start point = "+str(part_start_point))
+        #print("===>>> Part. direction = "+str(part_direction))
+        #print()
         angle                       = np.pi/2. - np.arctan2(coil_direction[1], coil_direction[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
@@ -564,12 +564,12 @@ class SingleInductionCalculator:
         # Rotate until coil direction is on Z+
         #######################
         # # debug
-        # print("Before coil direction rotation along X+:")
-        # print("===>>> Coil center = "+str(coil_center))
-        # print("===>>> Coil Direction = "+str(coil_direction))
-        # print("===>>> Part. start point = "+str(part_start_point))
-        # print("===>>> Part. direction = "+str(part_direction))
-        # print()
+        #print("Before coil direction rotation along X+:")
+        #print("===>>> Coil center = "+str(coil_center))
+        #print("===>>> Coil Direction = "+str(coil_direction))
+        #print("===>>> Part. start point = "+str(part_start_point))
+        #print("===>>> Part. direction = "+str(part_direction))
+        #print()
         angle                       = np.pi/2. - np.arctan2(coil_direction[2], coil_direction[1])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=0)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=0)
@@ -577,17 +577,18 @@ class SingleInductionCalculator:
         # Rotate until start_point has Y=0
         #######################
         # # debug
-        # print("Before start point rotation to Y=0:")
-        # print("===>>> Coil center = "+str(coil_center))
-        # print("===>>> Coil Direction = "+str(coil_direction))
-        # print("===>>> Part. start point = "+str(part_start_point))
-        # print("===>>> Part. direction = "+str(part_direction))
-        # print("=================")
+        #print("Before start point rotation to Y=0:")
+        #print("===>>> Coil center = "+str(coil_center))
+        #print("===>>> Coil Direction = "+str(coil_direction))
+        #print("===>>> Part. start point = "+str(part_start_point))
+        #print("===>>> Part. direction = "+str(part_direction))
+        #print("=================")
         if part_start_point[0]**2+part_start_point[1]**2<0.0001:
             # if start point XY is too close to 0
             # shift it a bit
             part_start_point            += 10.*part_direction
-        angle                                       = np.pi/2. - np.arctan2(part_start_point[1], part_start_point[0])
+            #print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        angle                                       = 2.*np.pi - np.arctan2(part_start_point[1], part_start_point[0])
         part_start_point, part_direction            = self._rotate(part_start_point, part_direction, angle=angle, axis=2)
         coil_center, coil_direction                 = self._rotate(coil_center, coil_direction, angle=angle, axis=2)
         #######################
@@ -595,6 +596,7 @@ class SingleInductionCalculator:
         #######################
         direction_theta                             = np.pi/2. - np.arctan2(part_direction[2], np.sqrt(part_direction[0]**2+part_direction[1]**2))
         direction_phi                               = np.arctan2(part_direction[1], part_direction[0])
+
         if direction_phi<0:
             direction_phi                          += 2.*np.pi
         #######################
@@ -605,28 +607,33 @@ class SingleInductionCalculator:
         # Re-define the start point to match customized start_z
         #######################
         # # debug
-        # print("Before redefine part. start point:")
-        # print("===>>> Coil center = "+str(coil_center))
-        # print("===>>> Coil Direction = "+str(coil_direction))
-        # print("===>>> Part. start point = "+str(part_start_point))
-        # print("===>>> Part. direction = "+str(part_direction))
-        # print()
+        #print("Before redefine part. start point:")
+        #print('===>>>closest distance from start'+str(closest_distance_from_start))
+        #print("===>>> Coil center = "+str(coil_center))
+        #print("===>>> Coil Direction = "+str(coil_direction))
+        #print("===>>> Part. start point = "+str(part_start_point))
+        #print("===>>> Part. direction = "+str(part_direction))
+        #print()
         part_start_point                            += (closest_distance_from_start - distance_before_zero)*part_direction
         new_start_z                                 = part_start_point[2]
         new_start_rho                               = np.sqrt(part_start_point[0]**2+part_start_point[1]**2)
+        #print('After redefine part. start point:')
+        #print('Distance Before Zero:'+str(distance_before_zero))
+        #print('===>>> Part.start point:'+str(part_start_point))
         # # debug
-        # print("Outputs:")
-        # print("===>>> Direction theta = "+str(direction_theta))
-        # print("===>>> Direction phi = "+str(direction_phi))
-        # print("===>>> start_rho = "+str(new_start_rho))
-        # print("===>>> start_z = "+str(new_start_z))
-        # print()
+        #print("Outputs:")
+        #print("===>>> Direction theta = "+str(direction_theta))
+        #print("===>>> Direction phi = "+str(direction_phi))
+        #print("===>>> start_rho = "+str(new_start_rho))
+        #print("===>>> start_z = "+str(new_start_z))
+        #print()
         return (
             direction_theta,
             direction_phi,
             new_start_rho,
             new_start_z,
         )
+
 
 
     #########################################
@@ -697,4 +704,3 @@ class MultipleInductionCalculator:
                 Obj             = calculator.calcInductionVoltage(**kwargs)
                 Vs             += Obj[0]
         return (Vs, sample_times)
-

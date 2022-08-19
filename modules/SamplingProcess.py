@@ -13,6 +13,7 @@ class SamplingProcess():
         return
     def _interpolate(self,t,induction_voltages):
         self.t = t
+        self.voltages = induction_voltages
         self._interInduction = interp1d(
                                         t,
                                         induction_voltages,
@@ -22,7 +23,15 @@ class SamplingProcess():
     def sampling(self,**kwargs):
         sample_rate  = kwargs.get('sample_rate',10000000)  ## in Hz
         t_range = max(self.t) - min(self.t)
+        if len(self.t) == 0:
+            print(self.voltages)
+            print(self.t)
+        #print(t_range)
         number_of_samples  = int(t_range*sample_rate*1e-9)
+        #print(number_of_samples)
         sampling_t                  = np.linspace(min(self.t),max(self.t),number_of_samples) ## in ns
+        #print(sampling_t)
         sampling_induction = self._interInduction(sampling_t)
+        if len(sampling_induction) == 0:
+            return (self.t,self.voltages)
         return (sampling_t,sampling_induction)

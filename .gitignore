@@ -1,0 +1,8 @@
+
+*.yaml
+*.png
+*.gif
+*.pkl
+*.mat
+*.nb
+modules/SignalCalculator.py
