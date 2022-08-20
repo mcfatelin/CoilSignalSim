@@ -18,7 +18,7 @@ from modules.CircuitCalculator import CircuitCalculator
 from modules.MagnetometerCalculator import MagnetometerCalculator
 from modules.OptimalFilter import OptimalFilter
 from modules.SamplingProcess import SamplingProcess
-
+from modules.ThresholdTrigger import ThresholdTrigger
 class SignalCalculator:
     def __init__(self, **kwargs):
         # read config file
@@ -50,6 +50,7 @@ class SignalCalculator:
         self._loadCircuitCalculator(**config['circuit_config'])
         self._loadMagnetometerCalculator(**config['magnetometer_config'])
         self._loadOptimalFilter(**config['optimalfilter_config'])
+        self._loadThresholdTrigger(**config['thresholdtrigger_config'])
         # check if particle generator has the same part_type as in field config
         if self._particleGenerator.getPartType()!=self._inductionCalculator.getPartType():
             raise ValueError(
@@ -154,7 +155,8 @@ class SignalCalculator:
         '''
         self._magnetometerCalculator                 = MagnetometerCalculator(**kwargs)
         return
-
+    def _loadThresholdTrigger(self,**kwargs):
+        self._thresholdtrigger                       = ThresholdTrigger(**kwargs)
     ###############################################
     ## Private functions
     ###############################################
@@ -189,6 +191,8 @@ class SignalCalculator:
             self._outputDict['noises_magnetometer']     = []
             self._outputDict['voltages_optimalfilter']  = []
             self._outputDict['noises_optimalfilter']    = []
+            self._outputDict['trigger_hits']            = []
+            self._outputDict['hit_intensity']           = []
         return
 
     def _generateParticle(self):
@@ -310,7 +314,11 @@ class SignalCalculator:
         self._hit_times                 = np.asarray(self._hit_times)
         self._coil_ids                  = np.asarray(self._coil_ids)
         self._voltages                  = np.asarray(self._voltages)
-        self._sample_times              = np.zeros(shape=self._voltages.shape)
+        #print(self._voltages.shape)
+        self._sample_times              = np.asarray([np.linspace(
+            -self._worldBoxSize/self._part_speed/self._speedOfLight/2,
+            self._worldBoxSize/self._part_speed/self._speedOfLight/2,
+            self._voltages.shape[1]) for i in range(self._voltages.shape[0])])#np.zeros(shape=self._voltages.shape)
         self._voltages_wo_noise         = np.zeros(shape=self._voltages.shape)
         return
 
@@ -349,9 +357,9 @@ class SignalCalculator:
                         part_magnetic_charge= self._part_magnetic_charge,
                         part_magnetic_moment= self._part_magnetic_moment
             )
-            self._sample_times[index]           += sample_times
-            self._voltages_wo_noise[index]      += voltages
-            self._voltages[index]               += voltages
+            self._sample_times[index]           = sample_times
+            self._voltages_wo_noise[index]      = voltages
+            self._voltages[index]               = voltages
         return
 
     def _correctPlaceHolderHitTimes(self):
@@ -386,6 +394,9 @@ class SignalCalculator:
                 num_samples         = NumberOfSamples,
                 sample_step         = SampleStep, # in ns
             )
+            #if SampleStep == 1e-7:
+                #print('Object'+str(Obj)+'\n')
+               # print('voltages'+str(voltages)+'\n')
             self._voltages_RLC.append(Obj[0])
             self._noises_RLC.append(Obj[1])
         return
@@ -443,6 +454,15 @@ class SignalCalculator:
             )
             self._voltages_op.append(Obj[0])
             self._noises_op.append(Obj[1])
+    def _calculateTrigger(self):
+        self._hits        = []
+        self._hit_intensity = []
+        for voltages,noises in zip(self._voltages_op,self._noises_op):
+            hit,hit_intensity   = self._thresholdtrigger._calculate(
+                voltages  = voltages+noises
+                )
+            self._hits.append(hit)
+            self._hit_intensity.append(hit_intensity)
     def _save(self):
         self._outputDict['part_centers'].append(self._part_center)
         self._outputDict['part_directions'].append(self._part_direction)
@@ -465,6 +485,8 @@ class SignalCalculator:
             self._outputDict['noises_magnetometer'].append(deepcopy(self._noises_magnetometer))
             self._outputDict['voltages_optimalfilter'].append(deepcopy(self._voltages_op))
             self._outputDict['noises_optimalfilter'].append(deepcopy(self._noises_op))
+            self._outputDict['trigger_hits'].append(deepcopy(self._hits))
+            self._outputDict['hit_intensity'].append(deepcopy(self._hit_intensity))
         return
 
 
@@ -519,6 +541,7 @@ class SignalCalculator:
                 self._calculateMagnetometerShapedVoltages()
                 self._Sampling()
                 self._calculateOptimalFilterShapedVoltages()
+                self._calculateTrigger()
             # save
             self._save()
         # output

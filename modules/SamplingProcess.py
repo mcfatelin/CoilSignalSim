@@ -30,6 +30,6 @@ class SamplingProcess():
         #print(sampling_t)
         sampling_induction = self._interInduction(sampling_t)
         if len(sampling_induction) == 0:
-            #print(self.t,self.voltages)
-            return (self.t,self.voltages)
+            #print('self.t and self.voltages',self.t,self.voltages,'\n')
+            return (sampling_t,self.voltages)
         return (sampling_t,sampling_induction)
