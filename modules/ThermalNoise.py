@@ -11,7 +11,7 @@ class ThermalNoiseGenerator:
     def __init__(self, **kwargs):
         self._resistance                = kwargs.get('R', 1000) # Om
         self._temperature               = kwargs.get('T', 300) # K
-        self._sampling_rate             = kwargs.get('sampling_rate', 40000) # Hz
+        self._sampling_rate             = kwargs.get('sampling_rate', 10000000) # Hz
         self._bandwidth                 = 0.5*self._sampling_rate # bandwidth is half of the sampling rate
         self._initiateConstants()
         return

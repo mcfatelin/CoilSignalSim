@@ -41,7 +41,7 @@ class MagnetometerCalculator():
         I = 1.5
         gama = gs*self.BhorMagneticMoment/(self.ReductionPlankConstant*(2*I+1))
         ### calculate the complex response value 
-        output = self.T2*gama/(-2*1j+2*self.T2*2*np.pi*(self.consider_freq-freq))
+        output = 150*self.T2*gama/(-2*1j+2*self.T2*2*np.pi*(self.consider_freq-freq))
         return output
     def _transfer_based_on_voltages(self,freq,voltage):
         ## first fft voltage

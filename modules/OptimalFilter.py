@@ -95,7 +95,6 @@ class OptimalFilter():
         # get frequencies
         freq                        = fftpack.fftfreq(num_samples, sample_step*1e-9) # in MHz
         # signal transfer
-        print(freq)
         voltages_Op                = self._transfer_based_on_voltages(freq, voltages,self._signalInterpolates )
         # noise transfer
         noises_Op                  = self._transfer_based_on_voltages(freq, noises,self._signalInterpolates )
